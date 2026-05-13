@@ -1,0 +1,296 @@
+Product Requirements Document (PRD)
+Product Name (Working)
+
+Demo Copilot
+AI-powered system that generates cinematic, launch-ready product demo videos automatically from real software.
+
+1. Vision
+
+To enable any builder to instantly transform a working product into a high-quality, emotionally compelling demo video that clearly communicates value, without needing video editing skills, storytelling expertise, or manual recording.
+
+In the long term, Demo Copilot becomes the default “product storytelling layer” for software creation and distribution.
+
+2. Problem Statement
+
+Most startups and builders struggle not with building products, but with communicating them effectively.
+
+Key failures:
+
+Product demos are slow to produce and often delayed or skipped
+Founders lack storytelling and video editing skills
+Existing tools require manual recording and editing effort
+Product value is often unclear in early-stage presentations
+Launch videos are inconsistent in quality and impact
+Technical products are especially hard to explain visually
+
+Result:
+Even strong products fail to convert attention into understanding.
+
+3. Solution Overview
+
+Demo Copilot automatically generates polished product demo videos by:
+
+Understanding the product (via URL, repo, or local app)
+Identifying key user flows and value points
+Generating a structured narrative script
+Automatically recording product interactions
+Creating voice narration using AI
+Rendering a cinematic demo video
+
+Output:
+A ready-to-use product demo suitable for:
+
+Product Hunt launches
+Investor pitches
+Landing pages
+Social media campaigns
+Onboarding flows
+4. Goals
+Primary Goals (MVP)
+Generate a complete demo video from a deployed web app URL
+Automatically identify and showcase core product flows
+Produce synchronized narration and screen recording
+Export a shareable video file (MP4)
+Secondary Goals
+Allow different demo styles (investor, user onboarding, marketing)
+Reduce demo creation time from hours/days to minutes
+Achieve consistent “high-quality launch video” output
+5. Non-Goals (Initial Phase)
+Full video editing suite
+Human avatar generation
+Social media scheduling
+Team collaboration features
+Mobile app support
+Advanced motion graphics editor
+6. Target Users
+Primary Users
+Indie hackers
+Startup founders
+Hackathon teams
+Early-stage SaaS builders
+Secondary Users
+Product marketers
+Developer tool companies
+Agencies building SaaS products
+7. Core User Flow
+Step 1: Input Product
+
+User provides:
+
+URL of deployed app OR
+Localhost app OR
+GitHub repository (future)
+Step 2: Product Analysis
+
+System detects:
+
+UI structure
+key pages
+workflows
+input forms
+dashboards
+navigation flows
+Step 3: Demo Planning (AI Layer)
+
+AI generates:
+
+narrative structure
+scene breakdown
+key product highlights
+storytelling flow
+
+Example:
+
+Hook (problem statement)
+Onboarding flow
+Core feature demo
+Value reinforcement
+Closing CTA
+Step 4: Automated Recording
+
+System:
+
+launches browser automation
+performs user actions
+captures screen segments
+simulates realistic usage
+Step 5: Voice Narration
+
+AI generates:
+
+structured script
+timing aligned narration
+voiceover via ElevenLabs
+Step 6: Video Rendering
+
+System compiles:
+
+screen recordings
+transitions
+voiceover
+captions
+highlights
+Step 7: Export
+
+Output:
+
+downloadable MP4
+shareable link (future)
+different format presets
+8. Functional Requirements
+8.1 Product Analyzer
+Detect UI routes and components
+Identify primary workflows
+Recognize input/output interactions
+Map user journeys
+8.2 Narrative Engine
+Generate structured demo script
+Support multiple tones:
+Investor pitch
+Product launch
+Tutorial
+Marketing demo
+8.3 Browser Automation Engine
+Automate navigation of web apps
+Perform clicks, inputs, transitions
+Capture screen recording segments
+8.4 Voice Engine
+Generate narration from script
+Sync voice timing with scenes
+Support multiple voice styles
+8.5 Video Renderer
+Combine assets into final video
+Add transitions and zoom effects
+Overlay captions and highlights
+Export in standard formats
+9. System Architecture (High-Level)
+Core Pipeline
+
+Product Input
+→ Analysis Engine
+→ Storyboard Generator
+→ Automation Engine (Playwright)
+→ Voice Engine (ElevenLabs)
+→ Rendering Engine (Remotion or equivalent)
+→ Export Module
+
+Key Components
+1. AI Orchestration Layer
+Handles reasoning, planning, and script generation
+2. Browser Automation Layer
+Executes real interactions with product
+3. Media Pipeline
+Combines video segments, voice, and overlays
+4. Rendering Engine
+Produces final cinematic output
+10. MVP Scope
+Must-Have
+URL-based input
+Basic product flow detection
+Simple scripted demo generation
+Automated screen recording
+AI voice narration
+Video export (MP4)
+Nice-to-Have (Post-MVP)
+Demo style selection
+Branding customization
+Scene editing
+Cursor extension integration
+Multi-format exports
+11. V2 Expansion
+GitHub repo analysis
+AI-driven UX storytelling optimization
+Real-time demo generation inside IDE
+Social media clip generator
+Automatic changelog video generation
+Multi-language narration
+Advanced cinematic effects engine
+12. Key Differentiator
+
+Unlike existing tools that focus on:
+
+screen recording
+editing
+avatars
+generic AI video generation
+
+Demo Copilot focuses on:
+
+“Understanding software and telling its story automatically.”
+
+The intelligence layer is the product.
+
+13. Success Metrics
+Product Metrics
+Time to generate demo (target: < 5 minutes)
+Completion rate of generated videos
+Number of exports per user
+Quality Metrics
+User satisfaction with demo relevance
+Retention rate of creators
+Reuse rate for multiple products
+Growth Metrics
+Number of shared demo links
+Viral coefficient (shares per video)
+Conversion from free → paid users
+14. Risks & Challenges
+1. Poor Product Understanding
+
+If AI misinterprets flows, demos become misleading.
+
+Mitigation:
+
+iterative AI planning loop
+fallback manual scene editing
+2. Low Video Quality
+
+If rendering is weak, product loses credibility.
+
+Mitigation:
+
+strict cinematic templates
+controlled design system
+3. Automation Fragility
+
+Web apps vary widely in structure.
+
+Mitigation:
+
+robust Playwright fallback strategies
+hybrid manual + AI guidance mode
+4. Latency in Generation
+
+Full pipeline may take time.
+
+Mitigation:
+
+staged generation
+background processing
+15. Go-To-Market Strategy
+Phase 1: Builders
+indie hackers
+hackathon teams
+AI startup founders
+Phase 2: SaaS Companies
+product marketing teams
+devtool companies
+Phase 3: Enterprise
+internal product storytelling
+sales enablement teams
+16. Product Philosophy
+
+This is not a video tool.
+
+This is:
+
+an AI storytelling system for software.
+
+The goal is not to “edit videos faster.”
+
+The goal is to:
+
+automatically translate software into narrative clarity.
+
+17. One-Sentence Summary
+
+Demo Copilot turns any working product into a cinematic, narrated, launch-ready demo video using AI understanding, automation, and storytelling intelligence.
