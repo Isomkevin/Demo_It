@@ -82,7 +82,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                   strokeLinejoin="round"
                 />
               </svg>
-              Back to Demo Copilot
+              Back to Demo It
             </Link>
             <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1 font-mono text-[11px] text-zinc-500">
               {params.id.slice(0, 8)}…
