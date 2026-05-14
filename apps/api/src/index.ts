@@ -8,7 +8,7 @@ server.register(cors, { origin: process.env.WEB_URL || "http://localhost:3000" }
 
 server.get("/health", async () => ({ status: "ok", ts: new Date().toISOString() }));
 
-const port = Number(process.env.API_PORT) || 3001;
+const port = Number(process.env.API_PORT ?? process.env.PORT) || 3001;
 
 import { projectRoutes } from "./routes/projects";
 import { jobRoutes } from "./routes/jobs";

@@ -1,0 +1,23 @@
+# Run API in Docker against the DB/Redis from docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.backend.yml up --build
+#
+# Set secrets in `.env` at the repo root (API keys, etc.). Compose overrides DB/Redis
+# hostnames so the API container reaches sibling services on the Docker network.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "${API_PORT:-3001}:3001"
+    env_file:
+      - .env
+    environment:
+      API_PORT: "3001"
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/demo_copilot
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_started
+      redis:
+        condition: service_started
