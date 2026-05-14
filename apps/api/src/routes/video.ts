@@ -2,8 +2,9 @@ import type { FastifyInstance } from "fastify";
 import fs from "node:fs";
 import path from "node:path";
 import { prisma } from "../lib/prisma";
+import { resolveOutputDir } from "../lib/output-dir";
 
-const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(process.cwd(), "tmp", "demo-copilot-output");
+const OUTPUT_DIR = resolveOutputDir();
 
 export async function videoRoutes(fastify: FastifyInstance) {
   fastify.get<{ Params: { id: string } }>("/api/v1/projects/:id/video", async (request, reply) => {

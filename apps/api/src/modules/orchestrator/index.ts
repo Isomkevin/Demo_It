@@ -15,9 +15,10 @@ import {
   type AutomationJobData, type VoiceJobData, type RenderJobData,
 } from "./queue";
 import type { DemoScript, DemoTone, PipelineStage } from "@demo-copilot/types";
-import path from "path";
+import path from "node:path";
+import { resolveOutputDir } from "../../lib/output-dir";
 
-const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(process.cwd(), "tmp", "demo-copilot-output");
+const OUTPUT_DIR = resolveOutputDir();
 const workerOpts = { connection: redis };
 
 // ─── Status Helper ────────────────────────────────────────────────────────────

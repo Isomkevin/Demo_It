@@ -7,6 +7,35 @@ import { resolveFfmpegExecutable } from "../../lib/ffmpeg-bin";
 
 const execFileAsync = promisify(execFile);
 
+const FFMPEG_MAX_BUFFER = 20 * 1024 * 1024;
+
+async function execFfmpeg(
+  ffmpeg: string,
+  args: string[],
+  options?: { cwd?: string }
+): Promise<void> {
+  try {
+    await execFileAsync(ffmpeg, args, {
+      ...options,
+      maxBuffer: FFMPEG_MAX_BUFFER,
+      windowsHide: true,
+    });
+  } catch (e) {
+    const ex = e as NodeJS.ErrnoException & { stderr?: Buffer; stdout?: Buffer };
+    const tail = [ex.stderr?.toString(), ex.stdout?.toString()]
+      .filter(Boolean)
+      .join("\n")
+      .trim()
+      .slice(-6000);
+    const preview = args.slice(0, 12).join(" ");
+    throw new Error(
+      `ffmpeg failed (${ffmpeg} ${preview}${args.length > 12 ? " …" : ""}): ${ex.message ?? String(e)}${
+        tail ? `\n--- ffmpeg output ---\n${tail}` : ""
+      }`
+    );
+  }
+}
+
 function sceneDurationSec(scene: { startMs: number; endMs: number }): number {
   return Math.max(0.1, (scene.endMs - scene.startMs) / 1000);
 }
@@ -60,7 +89,7 @@ async function muxSceneToMp4(params: {
   ].join("");
 
   await fs.mkdir(path.dirname(outPath), { recursive: true });
-  await execFileAsync(ffmpeg, [
+  await execFfmpeg(ffmpeg, [
     "-y",
     "-stream_loop",
     "-1",
@@ -95,7 +124,7 @@ async function concatMp4s(ffmpeg: string, files: string[], outPath: string): Pro
   const listContent = files.map((p) => `file '${p.replace(/\\/g, "/")}'`).join("\n");
   await fs.writeFile(listPath, listContent, "utf8");
 
-  await execFileAsync(ffmpeg, [
+  await execFfmpeg(ffmpeg, [
     "-y",
     "-f",
     "concat",
@@ -116,7 +145,7 @@ async function burnSubtitles(
   srtBasename: string,
   outPath: string
 ): Promise<void> {
-  await execFileAsync(
+  await execFfmpeg(
     ffmpeg,
     [
       "-y",
@@ -183,7 +212,9 @@ export async function renderTimelineWithFfmpeg(
     await fs.writeFile(srtPath, captionsToSrt(allCaptions), "utf8");
     try {
       await burnSubtitles(ffmpeg, workDir, "merged-nosubs.mp4", "captions.srt", finalPath);
-    } catch {
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn(`[Renderer] Subtitle burn-in failed, exporting without burned-in captions: ${msg}`);
       await fs.copyFile(mergedNoSubs, finalPath);
     }
   } else {

@@ -27,8 +27,16 @@ export async function renderTimelineToMP4(
       if (st && st.size > 1000) {
         return outputFile;
       }
+      if (st) {
+        console.warn(
+          `[Renderer] HyperFrames produced a tiny file (${st.size} bytes); trying FFmpeg timeline compositor`
+        );
+      } else {
+        console.warn(`[Renderer] HyperFrames did not produce ${outputFile}; trying FFmpeg timeline compositor`);
+      }
     } catch (err) {
-      console.warn(`[Renderer] HyperFrames render skipped or failed: ${err}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[Renderer] HyperFrames render skipped or failed:\n${msg}`);
     }
 
     console.log(`[Renderer] Falling back to FFmpeg timeline compositor`);

@@ -18,8 +18,24 @@ export async function runHyperframesRender(params: {
     process.env.HYPERFRAMES_NPX?.trim() ||
     (process.platform === "win32" ? "npx.cmd" : "npx");
   const args = ["hyperframes", "render", "--output", params.outputFile];
-  await execFileAsync(npx, args, {
-    cwd: params.projectDir,
-    env: process.env,
-  });
+  try {
+    await execFileAsync(npx, args, {
+      cwd: params.projectDir,
+      env: process.env,
+      windowsHide: true,
+      maxBuffer: 20 * 1024 * 1024,
+    });
+  } catch (e) {
+    const ex = e as NodeJS.ErrnoException & { stderr?: Buffer; stdout?: Buffer };
+    const detail = [ex.stderr?.toString(), ex.stdout?.toString()]
+      .filter(Boolean)
+      .join("\n")
+      .trim()
+      .slice(-8000);
+    throw new Error(
+      `HyperFrames render failed (${npx} ${args.join(" ")} in ${params.projectDir}): ${ex.message ?? String(e)}${
+        detail ? `\n--- output ---\n${detail}` : ""
+      }`
+    );
+  }
 }
