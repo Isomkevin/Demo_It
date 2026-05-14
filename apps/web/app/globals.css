@@ -2,9 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Geist via public URLs — avoids next/font/local + webpack when repo path contains `#`. */
+@font-face {
+  font-family: "Geist Sans";
+  src: url("/fonts/GeistVF.woff") format("woff");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/GeistMonoVF.woff") format("woff");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --font-geist-sans: "Geist Sans", system-ui, sans-serif;
+  --font-geist-mono: "Geist Mono", ui-monospace, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -17,7 +36,7 @@
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans);
 }
 
 @layer utilities {

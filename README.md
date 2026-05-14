@@ -24,6 +24,29 @@ An agentic AI pipeline that generates cinematic product demos from any URL.
 - pnpm 9+
 - Docker (for PostgreSQL & Redis)
 
+### Critical: your project folder must not contain `#`
+
+If the repo lives under a path like `...\ElevenHack #8 Cursor\...`, **Next.js can fail** with errors such as:
+
+- `Module not found: ... favicon.ico?__next_metadata__`
+- `Could not find the module "...app-router.js#" in the React Client Manifest`
+
+The **`#`** is treated like a **URL fragment** inside bundler-generated URLs, so module IDs break. **Renaming or moving the folder** (remove `#` from every parent directory name) is the real fix, for example:
+
+- `C:\dev\Demo_It`  
+- `C:\Users\Administrator\Desktop\ElevenHack-8-Cursor\Demo_It`
+
+**Workaround without renaming (Windows):** map a drive letter to the folder so your *current* path has no `#`:
+
+```powershell
+subst D: "C:\Users\Administrator\Desktop\ElevenHack #8 Cursor\Demo_It"
+cd D:\
+pnpm install
+pnpm dev
+```
+
+When finished: `subst D: /d`
+
 ### 1. Install Dependencies
 
 ```bash
@@ -95,6 +118,7 @@ pnpm dev
 
 | Symptom | What to check |
 |--------|----------------|
+| RSC / “app-router.js#” / Client Manifest errors | Path contains **`#`**. Rename/move the repo or use **`subst`** (see **Critical** above). |
 | `DATABASE_URL` errors on `db:push` | `.env` exists at **repo root**; Postgres container is `Up` (`docker compose ps`). |
 | UI cannot reach API | `NEXT_PUBLIC_API_URL=http://localhost:3001` in root `.env`; restart `pnpm dev`. |
 | Jobs stuck / workers errors | Redis `Up`; same `REDIS_URL` in `.env`. |
