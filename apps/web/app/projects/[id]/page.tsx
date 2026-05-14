@@ -1,12 +1,21 @@
 "use client";
 import { useProjectStatus } from "@/hooks/useProjectStatus";
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api-client";
+import { api, type ApiProject } from "@/lib/api-client";
 import { motion } from "framer-motion";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+function videoPlaybackUrl(project: Pick<ApiProject, "id" | "videoUrl">): string {
+  if (project.videoUrl.startsWith("http://") || project.videoUrl.startsWith("https://")) {
+    return project.videoUrl;
+  }
+  return `${API_BASE}/api/v1/projects/${project.id}/video`;
+}
 
 export default function ProjectPage({ params }: { params: { id: string } }) {
   const { status, done } = useProjectStatus(params.id);
-  const [project, setProject] = useState<any>(null);
+  const [project, setProject] = useState<ApiProject | null>(null);
 
   useEffect(() => {
     if (done) {
@@ -75,19 +84,16 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 className="mt-8 flex flex-col items-center gap-6"
               >
                 <div className="w-full aspect-video bg-black rounded-xl overflow-hidden border border-zinc-800">
-                  {/* Note: If videoUrl is absolute path, we might need an API route to serve it.
-                      Assuming videoUrl is publicly accessible for now, or we just display the path.
-                      For MVP, we use video node if it's a valid URL, otherwise a placeholder. */}
-                  <video 
-                    src={project.videoUrl.startsWith('http') || project.videoUrl.startsWith('/') ? project.videoUrl : `/api/v1/projects/${project.id}/video`} 
-                    controls 
+                  <video
+                    src={videoPlaybackUrl(project)}
+                    controls
                     className="w-full h-full object-contain"
                     autoPlay
                   />
                 </div>
                 
-                <a 
-                  href={project.videoUrl}
+                <a
+                  href={videoPlaybackUrl(project)}
                   download
                   className="px-8 py-3 bg-white text-black font-semibold rounded-lg hover:bg-zinc-200 transition-all flex items-center gap-2"
                 >

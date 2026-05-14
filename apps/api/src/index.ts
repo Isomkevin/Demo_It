@@ -11,12 +11,14 @@ const port = Number(process.env.API_PORT) || 3001;
 
 import { projectRoutes } from "./routes/projects";
 import { jobRoutes } from "./routes/jobs";
+import { videoRoutes } from "./routes/video";
 import { startWorkers } from "./modules/orchestrator";
 
 const start = async () => {
   try {
     await server.register(projectRoutes);
     await server.register(jobRoutes);
+    await server.register(videoRoutes);
     
     startWorkers();
 

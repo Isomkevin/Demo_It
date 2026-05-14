@@ -1,12 +1,9 @@
 import ffmpeg from "fluent-ffmpeg";
-import * as ffmpegStaticPkg from "ffmpeg-static";
 import path from "path";
 import fs from "fs/promises";
+import { resolveFfmpegExecutable } from "../../lib/ffmpeg-bin";
 
-const ffmpegPath = (ffmpegStaticPkg as any).default || ffmpegStaticPkg;
-if (typeof ffmpegPath === "string") {
-  ffmpeg.setFfmpegPath(ffmpegPath);
-}
+ffmpeg.setFfmpegPath(resolveFfmpegExecutable());
 
 export async function mergeSegmentsToMP4(
   segmentPaths: string[],

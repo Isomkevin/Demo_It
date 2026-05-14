@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import type { Timeline } from "@demo-copilot/types";
 import { runHyperframesRender } from "../../lib/hyperframes";
 import { emitHyperframesProject } from "./hyperframes-project";
+import { renderTimelineWithFfmpeg } from "./ffmpeg-timeline";
 
 export async function renderTimelineToMP4(
   timeline: Timeline,
@@ -10,25 +11,29 @@ export async function renderTimelineToMP4(
   outputDir: string
 ): Promise<string> {
   const backend = process.env.RENDER_BACKEND || "hyperframes";
-  
-  if (backend === "hyperframes") {
-    console.log(`[Renderer] Using HyperFrames backend...`);
-    const projectDir = await emitHyperframesProject(timeline, projectId, outputDir);
-    const outputFile = path.join(outputDir, projectId, "final.mp4");
-    // Ensure the output directory exists for the final mp4
-    await fs.mkdir(path.dirname(outputFile), { recursive: true });
-    
-    try {
-      await runHyperframesRender({ projectDir, outputFile });
-    } catch (error) {
-      console.warn(`[Renderer] HyperFrames CLI not fully installed/functional locally. Output file might not be created. Error: ${error}`);
-      // Fallback: mock final.mp4 for MVP tests so the pipeline continues
-      await fs.writeFile(outputFile, "mock video content");
-    }
-    return outputFile;
-  } else if (backend === "remotion") {
+
+  if (backend === "remotion") {
     throw new Error("Remotion backend is not implemented in this MVP.");
-  } else {
-    throw new Error(`Unknown render backend: ${backend}`);
   }
+
+  if (backend === "hyperframes") {
+    const outputFile = path.join(outputDir, projectId, "final.mp4");
+    await fs.mkdir(path.dirname(outputFile), { recursive: true });
+
+    try {
+      const projectDir = await emitHyperframesProject(timeline, projectId, outputDir);
+      await runHyperframesRender({ projectDir, outputFile });
+      const st = await fs.stat(outputFile).catch(() => null);
+      if (st && st.size > 1000) {
+        return outputFile;
+      }
+    } catch (err) {
+      console.warn(`[Renderer] HyperFrames render skipped or failed: ${err}`);
+    }
+
+    console.log(`[Renderer] Falling back to FFmpeg timeline compositor`);
+    return renderTimelineWithFfmpeg(timeline, projectId, outputDir);
+  }
+
+  throw new Error(`Unknown render backend: ${backend}`);
 }

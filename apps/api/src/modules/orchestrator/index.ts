@@ -7,7 +7,6 @@ import { recordAllScenes } from "../automation";
 import { generateAllNarrations } from "../voice";
 import { buildTimeline } from "../voice/sync";
 import { renderTimelineToMP4 } from "../renderer";
-import { runHyperframesRender } from "../../lib/hyperframes";
 import type { RenderBackend } from "@demo-copilot/types";
 import {
   QUEUE_NAMES,
@@ -15,17 +14,17 @@ import {
   type AnalyzeJobData, type ScriptJobData,
   type AutomationJobData, type VoiceJobData, type RenderJobData,
 } from "./queue";
-import type { DemoScript, Timeline } from "@demo-copilot/types";
+import type { DemoScript, Timeline, DemoTone, PipelineStage } from "@demo-copilot/types";
 import path from "path";
 
-const OUTPUT_DIR = process.env.OUTPUT_DIR || "/tmp/demo-copilot-output";
+const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(process.cwd(), "tmp", "demo-copilot-output");
 const workerOpts = { connection: redis };
 
 // ─── Status Helper ────────────────────────────────────────────────────────────
-async function updateStatus(projectId: string, stage: string, message = "") {
+async function updateStatus(projectId: string, stage: PipelineStage, message = "") {
   await prisma.project.update({
     where: { id: projectId },
-    data: { status: stage as any },
+    data: { status: stage },
   });
   console.log(`[Pipeline] [${projectId}] ${stage}: ${message}`);
 }
@@ -63,7 +62,7 @@ new Worker<ScriptJobData>(QUEUE_NAMES.SCRIPT, async (job) => {
   if (!raw) throw new Error("productMap not found in cache");
   const productMap = JSON.parse(raw);
 
-  const script = await generateScript(productMap, url, tone as any);
+  const script = await generateScript(productMap, url, tone as DemoTone);
   await redis.set(`project:${projectId}:script`, JSON.stringify(script), "EX", 3600);
 
   // Save script to DB run
@@ -135,20 +134,11 @@ new Worker<RenderJobData>(QUEUE_NAMES.RENDER, async (job) => {
 
   const backend = (process.env.RENDER_BACKEND || "hyperframes") as RenderBackend;
   let mp4Path: string;
-  if (backend === "remotion") {
+  try {
     mp4Path = await renderTimelineToMP4(timeline, projectId, OUTPUT_DIR);
-  } else {
-    // HyperFrames: emit project under OUTPUT_DIR (implement in renderer module), then:
-    const hfRoot = path.join(OUTPUT_DIR, process.env.HYPERFRAMES_PROJECTS_DIR || "hyperframes-projects", projectId);
-    mp4Path = path.join(OUTPUT_DIR, projectId, "final.mp4");
-    
-    try {
-      await runHyperframesRender({ projectDir: hfRoot, outputFile: mp4Path });
-    } catch (err) {
-      console.warn("Hyperframes CLI failed, creating mock mp4 file instead.");
-      const fs = require("fs/promises");
-      await fs.writeFile(mp4Path, "mock video content");
-    }
+  } catch (err) {
+    await updateStatus(projectId, "failed");
+    throw err;
   }
 
   // Save to DB
