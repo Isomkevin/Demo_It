@@ -164,6 +164,33 @@ new Worker<RenderJobData>(QUEUE_NAMES.RENDER, async (job) => {
     data: { status: "completed", videoUrl: mp4Path },
   });
 
+  // Cleanup intermediate files
+  try {
+    const fs = require("fs/promises");
+    for (const videoPath of Object.values(videoMap)) {
+      await fs.unlink(videoPath).catch(() => {});
+    }
+    for (const voiceOutput of voiceOutputs) {
+      await fs.unlink(voiceOutput.audioUrl).catch(() => {});
+    }
+    const audioDir = path.join(OUTPUT_DIR, projectId, "audio");
+    await fs.rm(audioDir, { recursive: true, force: true }).catch(() => {});
+    
+    if (backend === "hyperframes") {
+      const hfRoot = path.join(OUTPUT_DIR, process.env.HYPERFRAMES_PROJECTS_DIR || "hyperframes-projects", projectId);
+      await fs.rm(hfRoot, { recursive: true, force: true }).catch(() => {});
+    }
+    
+    await redis.del(`project:${projectId}:script`);
+    await redis.del(`project:${projectId}:videoMap`);
+    await redis.del(`project:${projectId}:voiceOutputs`);
+    await redis.del(`project:${projectId}:productMap`);
+    await redis.del(`project:${projectId}:runId`);
+    console.log(`[Pipeline] Cleaned up intermediate files for ${projectId}`);
+  } catch (err) {
+    console.warn(`[Pipeline] Cleanup failed for ${projectId}:`, err);
+  }
+
   console.log(`[Pipeline] ✓ Project ${projectId} complete: ${mp4Path}`);
 }, workerOpts);
 
