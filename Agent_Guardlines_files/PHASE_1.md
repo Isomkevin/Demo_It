@@ -556,7 +556,7 @@ Before moving to Phase 2, confirm all of the following:
 - [ ] `pnpm --filter=api dev` starts API on port 3001
 - [ ] `curl http://localhost:3001/health` returns OK
 - [ ] `pnpm typecheck` passes with zero errors across all packages
-- [ ] Test record script produces a valid, playable MP4
+- [ ] FFmpeg installed locally (used by segment merge and by HyperFrames CLI renders)
 - [ ] All generated files are in `.gitignore` (video output, node_modules, dist, .env)
 
 **Phase 1 complete → proceed to PHASE_2.md**

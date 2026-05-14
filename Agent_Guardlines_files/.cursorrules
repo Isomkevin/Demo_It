@@ -3,7 +3,14 @@
 
 ## PROJECT OVERVIEW
 Demo Copilot is an AI pipeline that takes a web app URL and outputs a cinematic MP4 product demo video.
-Pipeline: URL → Analyze → Script → Record (Playwright) → Voice (ElevenLabs) → Render (Remotion) → MP4
+Pipeline: URL → Analyze → Script → Record (Playwright) → Voice (ElevenLabs) → Render (**HyperFrames** default, Remotion optional) → MP4
+
+## HYPERFRAMES (HEYGEN)
+- Default final compositor: [HyperFrames](https://hyperframes.heygen.com/) — HTML/CSS/JS compositions + `npx hyperframes render` ([quickstart](https://hyperframes.heygen.com/quickstart)).
+- Implementation entry: `apps/api/src/lib/hyperframes.ts` (`runHyperframesRender`). Types: `RenderBackend` in `@demo-copilot/types`.
+- Env: `RENDER_BACKEND` (`hyperframes` | `remotion`), `HYPERFRAMES_PROJECTS_DIR`, optional `HYPERFRAMES_NPX`. See `.env.example` and `Agent_Guardlines_files/SPEC.md` §14.
+- Agent skill (correct compositions / GSAP / clip classes): `npx skills add heygen-com/hyperframes`
+- Full spec: `Agent_Guardlines_files/SPEC.md` section 14.
 
 ## MONOREPO LAYOUT
 - apps/web     → Next.js 14 App Router, port 3000
@@ -75,11 +82,13 @@ All prefixed /api/v1
 
 ## ENVIRONMENT VARIABLES
 DATABASE_URL, REDIS_URL, ANTHROPIC_API_KEY, ELEVENLABS_API_KEY,
-ELEVENLABS_VOICE_ID, OUTPUT_DIR, API_PORT, WEB_PORT, NEXT_PUBLIC_API_URL
+ELEVENLABS_VOICE_ID, OUTPUT_DIR, RENDER_BACKEND, HYPERFRAMES_PROJECTS_DIR, HYPERFRAMES_NPX (optional),
+API_PORT, WEB_PORT, NEXT_PUBLIC_API_URL
 
 ## PACKAGES (do not substitute)
 api: fastify, bullmq, ioredis, playwright, @anthropic-ai/sdk, elevenlabs, fluent-ffmpeg, zod, prisma
 web: next@14, zustand, @tanstack/react-query, framer-motion, tailwindcss
+HyperFrames: invoked via CLI (`npx hyperframes` per https://hyperframes.heygen.com/quickstart ); wrap with `apps/api/src/lib/hyperframes.ts`
 
 ## BUILD ORDER (do not skip phases)
 Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5

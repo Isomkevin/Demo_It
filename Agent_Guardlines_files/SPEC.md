@@ -12,6 +12,8 @@ An AI pipeline that takes a live web app URL and outputs a cinematic MP4 product
 URL → Analyze UI → Plan narrative → Automate browser → Record video → Generate voice → Sync timeline → Render MP4
 ```
 
+**Final render (compositing):** Prefer **[HyperFrames](https://hyperframes.heygen.com/)** (HeyGen): declarative HTML/CSS/JS compositions + `hyperframes render` → MP4. **Remotion** remains an optional React-based path documented in Phase 4.
+
 ---
 
 ## 2. MONOREPO STRUCTURE
@@ -105,7 +107,8 @@ apps/api/
 │   │   ├── redis.ts                # Redis client singleton
 │   │   ├── llm.ts                  # LLM client (Anthropic SDK)
 │   │   ├── elevenlabs.ts           # ElevenLabs client
-│   │   └── storage.ts              # S3/Supabase storage client
+│   │   ├── storage.ts              # S3/Supabase storage client
+│   │   └── hyperframes.ts          # Invoke HyperFrames CLI (see §14)
 │   └── types/                      # Local API types (re-exports from packages/types)
 ├── prisma/
 │   └── schema.prisma
@@ -263,6 +266,8 @@ export type JobStatus = {
   error?: string;
 };
 
+export type RenderBackend = "hyperframes" | "remotion";
+
 // ─── DB Models (mirrors Prisma) ───────────────────────────────────────────────
 
 export type Project = {
@@ -365,6 +370,11 @@ OUTPUT_DIR="/tmp/demo-copilot-output"
 VIDEO_RESOLUTION_WIDTH=1920
 VIDEO_RESOLUTION_HEIGHT=1080
 VIDEO_FPS=30
+
+# Final compositor: hyperframes | remotion (see §14 HyperFrames)
+RENDER_BACKEND="hyperframes"
+HYPERFRAMES_PROJECTS_DIR="hyperframes-projects"
+# HYPERFRAMES_NPX="npx"
 ```
 
 ---
@@ -437,6 +447,8 @@ type ScriptResponse = {
 }
 ```
 
+**HyperFrames:** Final render uses the **HyperFrames CLI** (`npx hyperframes render`, [quickstart](https://hyperframes.heygen.com/quickstart)). It is not required in `package.json` if workers have Node 22+ and network for `npx`. Pin with a devDependency if CI must be offline-stable.
+
 ### web
 ```json
 {
@@ -477,12 +489,14 @@ type ScriptResponse = {
 ---
 
 ## 10. VIDEO RENDERING RULES
-- Use Remotion for compositing
-- Use FFmpeg for final encoding
-- Output: H.264, AAC audio, MP4 container
-- Resolution: 1920×1080 @ 30fps
-- Final file path: `OUTPUT_DIR/[projectId]/final.mp4`
-- Upload to storage, update `Project.videoUrl` in DB
+- **Default:** Use **[HyperFrames](https://hyperframes.heygen.com/)** for compositing: timed HTML/CSS/JS compositions, optional GSAP, assets under `assets/`, then `npx hyperframes render --output …` (see [quickstart](https://hyperframes.heygen.com/quickstart)). Orchestration calls `apps/api/src/lib/hyperframes.ts` → `runHyperframesRender`.
+- **Alternate:** Remotion (React) compositing as documented in `PHASE_4.md` when `RENDER_BACKEND=remotion`.
+- **Segment merge / encoding:** FFmpeg remains valid for Playwright segment concat and encodes; HyperFrames also requires FFmpeg on PATH for its CLI render.
+- Output: H.264, AAC (when applicable), MP4 container; target **1920×1080 @ 30fps** unless composition metadata overrides.
+- Final file path: `OUTPUT_DIR/[projectId]/final.mp4` (or beside the HyperFrames project per orchestrator choice).
+- Upload to storage, update `Project.videoUrl` in DB.
+- **Agent authoring:** Install HeyGen skills so agents emit valid compositions: `npx skills add heygen-com/hyperframes` ([quickstart](https://hyperframes.heygen.com/quickstart)).
+- **Docs index:** `https://hyperframes.mintlify.app/llms.txt` (for agents discovering HF pages).
 
 ---
 
@@ -502,7 +516,8 @@ type ScriptResponse = {
 
 ## 12. LOCAL DEVELOPMENT SETUP
 ```bash
-# Prerequisites: Node 20+, pnpm 9+, Docker (for Postgres + Redis)
+# Prerequisites: Node 20+, pnpm 9+, Docker (Postgres + Redis), FFmpeg on PATH
+# HyperFrames local renders recommend Node.js 22+ (see https://hyperframes.heygen.com/quickstart )
 
 # 1. Install dependencies
 pnpm install
@@ -516,10 +531,13 @@ pnpm --filter=@demo-copilot/db db:push
 # 4. Install Playwright browsers
 pnpm --filter=api exec playwright install chromium
 
-# 5. Start all apps
+# 5. (Optional) HyperFrames agent skills
+npx skills add heygen-com/hyperframes
+
+# 6. Start all apps
 pnpm dev               # runs web + api concurrently via turbo
 
-# 6. API runs on :3001, Web runs on :3000
+# 7. API runs on :3001, Web runs on :3000
 ```
 
 ---
@@ -549,3 +567,26 @@ services:
 volumes:
   postgres_data:
 ```
+
+---
+
+## 14. HYPERFRAMES (HEYGEN) INTEGRATION
+
+**Product:** [HyperFrames](https://hyperframes.heygen.com/) — compose videos by writing HTML, CSS, and JS; AI-friendly; Apache 2.0.
+
+**Why here:** Playwright captures **authentic product UI**; HyperFrames composes **captions, motion graphics, bumpers, and multi-track timing** into a single MP4 without building a custom frame server.
+
+**Workflow:**
+1. Pipeline stages through **voicing / timeline sync** unchanged (`packages/types` `Timeline`, etc.).
+2. Emit a HyperFrames project under `OUTPUT_DIR/[projectId]/` or `OUTPUT_DIR/${HYPERFRAMES_PROJECTS_DIR}/[projectId]/`: `meta.json`, `index.html`, `compositions/*.html`, copy **scene video/audio** into `assets/`.
+3. Call `runHyperframesRender({ projectDir, outputFile })` from `apps/api/src/lib/hyperframes.ts` (wraps `npx hyperframes render --output …`). On Windows, `npx.cmd` is used unless `HYPERFRAMES_NPX` is set.
+4. Set `RENDER_BACKEND=hyperframes` (default in `.env.example`). Use `remotion` only if implementing the Remotion path in Phase 4.
+
+**Environment (see `.env.example`):** `RENDER_BACKEND`, `HYPERFRAMES_PROJECTS_DIR`, optional `HYPERFRAMES_NPX`.
+
+**Types:** `RenderBackend` in `packages/types/src/index.ts`.
+
+**References:**
+- [HyperFrames home](https://hyperframes.heygen.com/)
+- [Quickstart](https://hyperframes.heygen.com/quickstart) (`npx hyperframes init`, `preview`, `render`)
+- Agent skill: `npx skills add heygen-com/hyperframes`

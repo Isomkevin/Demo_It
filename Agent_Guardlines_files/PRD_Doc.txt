@@ -159,7 +159,7 @@ Generate narration from script
 Sync voice timing with scenes
 Support multiple voice styles
 8.5 Video Renderer
-Combine assets into final video
+Combine assets into final video using **[HyperFrames](https://hyperframes.heygen.com/)** (HTML/CSS/JS compositions + CLI; [quickstart](https://hyperframes.heygen.com/quickstart)) by default, with Remotion as an alternate compositor when configured.
 Add transitions and zoom effects
 Overlay captions and highlights
 Export in standard formats
@@ -171,7 +171,7 @@ Product Input
 → Storyboard Generator
 → Automation Engine (Playwright)
 → Voice Engine (ElevenLabs)
-→ Rendering Engine (Remotion or equivalent)
+→ Rendering Engine (**HyperFrames** default; Remotion optional)
 → Export Module
 
 Key Components

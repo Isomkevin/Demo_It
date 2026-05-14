@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "strict": true,
+    "esModuleInterop": true,
+    "outDir": "dist",
+    "paths": {
+      "@demo-copilot/types": ["../../packages/types/src/index.ts"],
+      "@demo-copilot/db": ["../../packages/db/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

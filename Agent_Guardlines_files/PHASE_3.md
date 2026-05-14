@@ -306,7 +306,7 @@ console.log(`✓ Total duration: ${Math.round(timeline.totalDurationMs / 1000)}s
 const timelinePath = path.join(OUTPUT_DIR, PROJECT_ID, "timeline.json");
 await fs.writeFile(timelinePath, JSON.stringify(timeline, null, 2));
 console.log(`\n✓ Timeline saved: ${timelinePath}`);
-console.log("Phase 3 test complete. Proceed to Phase 4 for rendering.");
+console.log("Phase 3 test complete. Proceed to Phase 4 for rendering (HyperFrames and/or Remotion per RENDER_BACKEND).");
 ```
 
 ### Run with:

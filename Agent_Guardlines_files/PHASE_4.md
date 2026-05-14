@@ -1,6 +1,34 @@
-# PHASE 4 — Rendering Engine (Remotion + FFmpeg)
+# PHASE 4 — Rendering Engine (HyperFrames + Remotion + FFmpeg)
 > Prerequisite: Phase 3 complete. Timeline JSON with video + audio paths is produced.
 > Goal: Consume Timeline JSON → render a cinematic MP4 with captions, transitions, and audio baked in.
+
+---
+
+## HyperFrames (preferred — HeyGen)
+
+**Product:** [HyperFrames](https://hyperframes.heygen.com/) — AI/agent-friendly video as HTML/CSS/JS; **CLI:** `npx hyperframes init | preview | render` ([quickstart](https://hyperframes.heygen.com/quickstart)).
+
+**Project integration:** `apps/api/src/lib/hyperframes.ts` exposes `runHyperframesRender({ projectDir, outputFile })`. Env: `RENDER_BACKEND=hyperframes` (default in `.env.example`), `HYPERFRAMES_PROJECTS_DIR`, optional `HYPERFRAMES_NPX`. Types: `RenderBackend` in `@demo-copilot/types`.
+
+**Agent workflow:** `npx skills add heygen-com/hyperframes` so generated compositions use correct `data-*` clip semantics, GSAP registration, etc.
+
+### TASK 4.HF — HyperFrames project + render (outline)
+
+1. Scaffold once manually or in CI: `npx hyperframes init <template> --non-interactive` to learn the folder layout (`meta.json`, `index.html`, `compositions/`, `assets/`).
+2. Implement a builder (e.g. `modules/renderer/hyperframes-project.ts`) that copies Playwright **segment** files + TTS audio into `assets/`, writes `index.html` / compositions with `class="clip"` timing aligned to `Timeline` from `@demo-copilot/types`.
+3. From the render worker, if `process.env.RENDER_BACKEND !== "remotion"`, call `runHyperframesRender` with `projectDir` and `outputFile` → `OUTPUT_DIR/[projectId]/final.mp4`.
+4. Validate: same completion criteria as Task 4.7 (playable MP4, captions, audio).
+
+### Done when (HyperFrames path)
+
+- [ ] `runHyperframesRender` succeeds against a hand-built HF project checked into a fixture or generated in `/tmp`
+- [ ] Documented in orchestrator behind `RENDER_BACKEND`
+
+---
+
+## Remotion path (alternate when `RENDER_BACKEND=remotion`)
+
+The tasks below (4.1–4.7) implement the **Remotion** renderer. Skip or defer if shipping HyperFrames-only MVP.
 
 ---
 
@@ -315,8 +343,9 @@ npx tsx apps/api/src/scripts/test-render.ts /tmp/demo-copilot-output/test-123/ti
 
 ## PHASE 4 COMPLETION CHECKLIST
 
+- [ ] **HyperFrames (default):** `runHyperframesRender` documented and callable from pipeline; HF project emission plan implemented or stubbed with clear TODO per Task 4.HF
+- [ ] **Remotion (optional):** If `RENDER_BACKEND=remotion`, `pnpm typecheck` passes and `renderTimelineToMP4(timeline, ...)` produces a valid MP4 (not corrupted)
 - [ ] `pnpm typecheck` passes across all packages
-- [ ] `renderTimelineToMP4(timeline, ...)` produces a valid MP4 (not corrupted)
 - [ ] Video has correct resolution (1920×1080)
 - [ ] Audio is present and synced to video
 - [ ] Captions appear and are readable

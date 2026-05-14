@@ -8,7 +8,7 @@
 **Name:** Demo Copilot
 **What it does:** Takes a web app URL → outputs a cinematic MP4 product demo video automatically
 **Stage:** Greenfield. Building from scratch.
-**Stack:** Next.js 14 + Node.js/Fastify + Playwright + ElevenLabs + Remotion + PostgreSQL + Redis + BullMQ
+**Stack:** Next.js 14 + Node.js/Fastify + Playwright + ElevenLabs + **HyperFrames** (default final render) + Remotion (optional) + PostgreSQL + Redis + BullMQ
 
 ---
 
@@ -24,17 +24,17 @@
 8. **Never hardcode secrets.** Always use `process.env`.
 9. Use `claude-sonnet-4-20250514` for all Anthropic API calls.
 10. Each Playwright scene runs in an **isolated browser context** — no state leakage.
-
----
+11. **Final MP4 compositing:** Prefer **HyperFrames** (`apps/api/src/lib/hyperframes.ts`, `RENDER_BACKEND=hyperframes`). See `SPEC.md` §14 and [HyperFrames quickstart](https://hyperframes.heygen.com/quickstart). Use Remotion only when `RENDER_BACKEND=remotion`.
 
 ## FILE STRUCTURE (quick reference)
 
 ```
 demo-copilot/
 ├── apps/web/          → Next.js UI (port 3000)
-├── apps/api/          → Fastify API + pipeline (port 3001)
-├── packages/types/    → Shared TS types (single source of truth)
+├── apps/api/          → Fastify API + pipeline (port 3001); `src/lib/hyperframes.ts` = HF CLI
+├── packages/types/    → Shared TS types (single source of truth); includes `RenderBackend`
 ├── packages/db/       → Prisma schema + client
+├── Agent_Guardlines_files/ → SPEC.md, phases, PRD, .cursorrules
 └── tasks/             → Phase files (read-only, do not modify)
 ```
 
@@ -48,7 +48,7 @@ Phase order:
 1. `PHASE_1.md` — Monorepo setup + Playwright recorder + basic MP4 export
 2. `PHASE_2.md` — LLM analyzer + script engine + scene planner
 3. `PHASE_3.md` — ElevenLabs voice + timeline sync
-4. `PHASE_4.md` — Remotion rendering engine
+4. `PHASE_4.md` — Rendering: **HyperFrames** (preferred) + Remotion (alternate)
 5. `PHASE_5.md` — Full orchestration pipeline + UI
 
 ---
@@ -153,6 +153,8 @@ See `.env.example` at root. Required for any module to run:
 - `ANTHROPIC_API_KEY` — LLM calls
 - `ELEVENLABS_API_KEY` + `ELEVENLABS_VOICE_ID` — Voice generation
 - `OUTPUT_DIR` — Local video storage path
+- `RENDER_BACKEND` — `hyperframes` (default) or `remotion`
+- `HYPERFRAMES_PROJECTS_DIR`, optional `HYPERFRAMES_NPX` — HyperFrames project layout / CLI override
 
 ---
 
@@ -165,5 +167,5 @@ See `.env.example` at root. Required for any module to run:
 | Not validating LLM JSON | Always use Zod schema validation |
 | Importing types from local files | Import from `@demo-copilot/types` |
 | Using `fetch` without error handling | Use the `api-client.ts` wrapper |
-| Blocking the main thread with FFmpeg | Use child_process with async/await |
+| Blocking the main thread with FFmpeg / HyperFrames CLI | Use `child_process` / `runHyperframesRender` async; do not block the event loop |
 | Hardcoding voice ID | Always read from `ELEVENLABS_VOICE_ID` env var |

@@ -68,6 +68,8 @@ import { recordAllScenes } from "../automation";
 import { generateAllNarrations } from "../voice";
 import { buildTimeline } from "../voice/sync";
 import { renderTimelineToMP4 } from "../renderer";
+import { runHyperframesRender } from "../../lib/hyperframes";
+import type { RenderBackend } from "@demo-copilot/types";
 import {
   QUEUE_NAMES,
   scriptQueue, automationQueue, voiceQueue, renderQueue,
@@ -191,7 +193,17 @@ new Worker<RenderJobData>(QUEUE_NAMES.RENDER, async (job) => {
   const voiceOutputs = JSON.parse(voiceRaw);
 
   const timeline = buildTimeline(script, voiceOutputs, videoMap);
-  const mp4Path = await renderTimelineToMP4(timeline, projectId, OUTPUT_DIR);
+
+  const backend = (process.env.RENDER_BACKEND || "hyperframes") as RenderBackend;
+  let mp4Path: string;
+  if (backend === "remotion") {
+    mp4Path = await renderTimelineToMP4(timeline, projectId, OUTPUT_DIR);
+  } else {
+    // HyperFrames: emit project under OUTPUT_DIR (implement in renderer module), then:
+    const hfRoot = path.join(OUTPUT_DIR, process.env.HYPERFRAMES_PROJECTS_DIR || "hyperframes-projects", projectId);
+    mp4Path = path.join(OUTPUT_DIR, projectId, "final.mp4");
+    await runHyperframesRender({ projectDir: hfRoot, outputFile: mp4Path });
+  }
 
   // Save to DB
   const runId = await redis.get(`project:${projectId}:runId`);
