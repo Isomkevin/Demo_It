@@ -2,6 +2,14 @@
 
 An agentic AI pipeline that generates cinematic product demos from any URL.
 
+## The idea (pitch in one breath)
+
+**Problem:** Product teams need polished demo videos (for investors, onboarding, marketing), but producing them means scriptwriting, screen recording, voiceover, editing, and captions—slow and expensive.
+
+**Demo Copilot:** You paste a **live product URL**. The system **scrapes and understands the UI**, an **LLM plans a short demo story** with concrete browser actions, **Playwright records the screen** while simulating those actions, **ElevenLabs narrates** each scene, and the pipeline **merges video + voice + captions** into a **single MP4** you can download from the web UI.
+
+**Why it fits ElevenHack:** It chains **ElevenLabs** (voice) with **browser automation + AI planning** so the output feels like a human-produced walkthrough—not a silent screen cap.
+
 ## Features
 - **AI UI Analysis**: Understands any webpage structure and extracts user flows.
 - **Storytelling Engine**: Writes engaging marketing scripts based on UI flows.
@@ -30,9 +38,20 @@ Copy the example environment file and fill in your keys:
 cp .env.example .env
 ```
 
-Required keys:
-- `ANTHROPIC_API_KEY` (or your configured LLM provider per code paths)
-- `ELEVENLABS_API_KEY` for narration in the full pipeline
+On **Windows (PowerShell)**:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Keep **one `.env` at the repo root** (same folder as `package.json`). The API and web dev server both read it.
+
+Required keys for the **full** pipeline (analyze → script → record → voice → render):
+
+- `ANTHROPIC_API_KEY` **or** `OPENROUTER_API_KEY` (see `apps/api/src/lib/llm.ts`)
+- `ELEVENLABS_API_KEY` (+ optional `ELEVENLABS_VOICE_ID`)
+
+For **Docker + DB only**, the defaults in `.env.example` for `DATABASE_URL` and `REDIS_URL` match `docker-compose.yml`.
 
 ### 3. Start Infrastructure
 
@@ -42,10 +61,10 @@ Start the database and Redis instances:
 docker compose up -d
 ```
 
-Initialize the database schema:
+Initialize the database schema (loads root `.env` automatically):
 
 ```bash
-pnpm --filter=@demo-copilot/db db:push
+pnpm db:push
 ```
 
 ### 4. Playwright Setup
@@ -66,6 +85,21 @@ pnpm dev
 
 - **Web App**: http://localhost:3000
 - **API Server**: http://localhost:3001
+
+### Smoke test
+
+- API: open http://localhost:3001/health — expect `{"status":"ok",...}`  
+- UI: open http://localhost:3000 — submit a URL to enqueue a run (needs valid AI + voice keys for the full job to finish).
+
+### Troubleshooting
+
+| Symptom | What to check |
+|--------|----------------|
+| `DATABASE_URL` errors on `db:push` | `.env` exists at **repo root**; Postgres container is `Up` (`docker compose ps`). |
+| UI cannot reach API | `NEXT_PUBLIC_API_URL=http://localhost:3001` in root `.env`; restart `pnpm dev`. |
+| Jobs stuck / workers errors | Redis `Up`; same `REDIS_URL` in `.env`. |
+| Playwright fails | Run `pnpm --filter=api exec playwright install chromium`. |
+| Windows + `OUTPUT_DIR=/tmp/...` | Prefer a Windows path in `.env` (e.g. under the repo `tmp/` folder) or ensure that folder exists. |
 
 ### Typecheck
 

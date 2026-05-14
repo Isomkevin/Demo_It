@@ -14,7 +14,7 @@ import {
   type AnalyzeJobData, type ScriptJobData,
   type AutomationJobData, type VoiceJobData, type RenderJobData,
 } from "./queue";
-import type { DemoScript, Timeline, DemoTone, PipelineStage } from "@demo-copilot/types";
+import type { DemoScript, DemoTone, PipelineStage } from "@demo-copilot/types";
 import path from "path";
 
 const OUTPUT_DIR = process.env.OUTPUT_DIR || path.join(process.cwd(), "tmp", "demo-copilot-output");

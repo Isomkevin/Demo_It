@@ -7,8 +7,9 @@ import { motion } from "framer-motion";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 function videoPlaybackUrl(project: Pick<ApiProject, "id" | "videoUrl">): string {
-  if (project.videoUrl.startsWith("http://") || project.videoUrl.startsWith("https://")) {
-    return project.videoUrl;
+  const url = project.videoUrl;
+  if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
+    return url;
   }
   return `${API_BASE}/api/v1/projects/${project.id}/video`;
 }

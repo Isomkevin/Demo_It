@@ -1,3 +1,4 @@
+import "../load-env";
 import { scrapePage } from "../modules/analyzer/dom-scraper";
 import { recordScene } from "../modules/automation/executor";
 import { mergeSegmentsToMP4 } from "../modules/automation/recorder";

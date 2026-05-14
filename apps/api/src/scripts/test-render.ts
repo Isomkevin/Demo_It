@@ -1,3 +1,4 @@
+import "../load-env";
 import fs from "fs/promises";
 import path from "path";
 import { renderTimelineToMP4 } from "../modules/renderer";

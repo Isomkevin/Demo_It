@@ -1,3 +1,4 @@
+import "../load-env";
 import { analyzeProduct } from "../modules/analyzer";
 import { generateScript } from "../modules/script";
 import fs from "fs/promises";
