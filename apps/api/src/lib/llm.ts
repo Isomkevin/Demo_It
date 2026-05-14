@@ -1,11 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+const useOpenRouter = !!process.env.OPENROUTER_API_KEY;
 
-export const MODEL = "claude-3-7-sonnet-20250219"; // Using updated anthropic model, original prompt suggested 3.5
+let anthropicClient: Anthropic | null = null;
+if (!useOpenRouter) {
+  anthropicClient = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY || "",
+  });
+}
+
+export const MODEL = useOpenRouter
+  ? process.env.OPENROUTER_MODEL || "anthropic/claude-3.7-sonnet"
+  : "claude-3-7-sonnet-20250219";
 
 /**
  * Call the LLM and parse structured JSON output.
@@ -25,15 +32,50 @@ export async function callLLM<T>(
         ? "\n\nIMPORTANT: Your previous response failed JSON parsing. Return ONLY valid JSON, no markdown, no explanation."
         : "";
 
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt + retryHint }],
-    });
+    let rawText = "";
 
-    const rawText =
-      response.content[0]?.type === "text" ? response.content[0].text : "";
+    try {
+      if (useOpenRouter) {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": process.env.WEB_URL || "http://localhost:3000",
+            "X-Title": "Demo Copilot",
+          },
+          body: JSON.stringify({
+            model: MODEL,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt + retryHint },
+            ],
+            max_tokens: maxTokens,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`OpenRouter API error: ${response.status} ${await response.text()}`);
+        }
+
+        const data = await response.json();
+        rawText = data.choices?.[0]?.message?.content || "";
+      } else {
+        if (!anthropicClient) throw new Error("Anthropic client not initialized");
+        const response = await anthropicClient.messages.create({
+          model: MODEL,
+          max_tokens: maxTokens,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userPrompt + retryHint }],
+        });
+
+        rawText = response.content[0]?.type === "text" ? response.content[0].text : "";
+      }
+    } catch (err) {
+      console.error(`LLM network/API error on attempt ${attempt}:`, err);
+      lastError = err;
+      continue; // retry on network errors too
+    }
 
     // Extract JSON from response (handles markdown code fences)
     const jsonMatch = rawText.match(/```(?:json)?\s*([\s\S]*?)```/) ||

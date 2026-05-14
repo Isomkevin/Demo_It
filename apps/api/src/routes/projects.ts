@@ -1,7 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import type { CreateProjectRequest } from "@demo-copilot/types";
 
 const CreateProjectBody = z.object({
   url: z.string().url(),
