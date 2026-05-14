@@ -1,5 +1,28 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { prisma } from "../lib/prisma";
+
+/** Same default as `index.ts` @fastify/cors; SSE uses `reply.raw` so global CORS hooks never attach headers before flushHeaders. */
+function webOriginAllow(request: FastifyRequest): string {
+  const configured = process.env.WEB_URL || "http://localhost:3000";
+  const origin = request.headers.origin;
+  if (!origin) return configured;
+  if (origin === configured) return origin;
+  try {
+    const u = new URL(configured);
+    const o = new URL(origin);
+    if (o.protocol === u.protocol && o.port === u.port) {
+      if (
+        (u.hostname === "localhost" && o.hostname === "127.0.0.1") ||
+        (u.hostname === "127.0.0.1" && o.hostname === "localhost")
+      ) {
+        return origin;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return configured;
+}
 
 export async function jobRoutes(fastify: FastifyInstance) {
   // SSE status stream
@@ -8,6 +31,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const { id } = request.params;
 
+      reply.raw.setHeader("Access-Control-Allow-Origin", webOriginAllow(request));
       reply.raw.setHeader("Content-Type", "text/event-stream");
       reply.raw.setHeader("Cache-Control", "no-cache");
       reply.raw.setHeader("Connection", "keep-alive");
@@ -18,7 +42,7 @@ export async function jobRoutes(fastify: FastifyInstance) {
       };
 
       let lastStatus = "";
-      const interval = setInterval(async () => {
+      const tick = async () => {
         try {
           const project = await prisma.project.findUnique({ where: { id } });
           if (!project) {
@@ -40,7 +64,10 @@ export async function jobRoutes(fastify: FastifyInstance) {
           clearInterval(interval);
           reply.raw.end();
         }
-      }, 1500);
+      };
+
+      void tick();
+      const interval = setInterval(() => void tick(), 1500);
 
       request.raw.on("close", () => clearInterval(interval));
     }

@@ -52,6 +52,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     { key: "scripting", label: "Writing Script" },
     { key: "recording", label: "Recording Video" },
     { key: "voicing", label: "Generating Voice" },
+    { key: "syncing", label: "Syncing timeline" },
     { key: "rendering", label: "Rendering Final Video" },
     { key: "completed", label: "Completed" },
   ];

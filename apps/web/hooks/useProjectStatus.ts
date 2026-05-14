@@ -25,7 +25,8 @@ export function useProjectStatus(projectId: string) {
         es.close();
       }
     };
-    es.onerror = () => es.close();
+    // Do not close on error: lets the browser reconnect while the API is starting,
+    // and avoids a stuck "Initializing" state after a transient network blip.
     return () => es.close();
   }, [projectId, done]);
 
