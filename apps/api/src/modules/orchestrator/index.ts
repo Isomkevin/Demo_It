@@ -1,4 +1,4 @@
-import { Worker } from "bullmq";
+import { Worker, type Job } from "bullmq";
 import { redis } from "../../lib/redis";
 import { prisma } from "../../lib/prisma";
 import { analyzeProduct } from "../analyzer";
@@ -29,8 +29,24 @@ async function updateStatus(projectId: string, stage: PipelineStage, message = "
   console.log(`[Pipeline] [${projectId}] ${stage}: ${message}`);
 }
 
+async function markFailedIfExhausted(
+  job: Job<{ projectId: string }> | undefined,
+  err: Error,
+  label: string
+) {
+  if (!job?.data?.projectId) return;
+  const max = job.opts.attempts ?? 1;
+  if (job.attemptsMade < max) return;
+  console.error(`[Pipeline] [${job.data.projectId}] ${label} failed permanently:`, err);
+  try {
+    await updateStatus(job.data.projectId, "failed");
+  } catch (e) {
+    console.error("[Pipeline] Could not set failed status:", e);
+  }
+}
+
 // ─── Worker 1: Analyze ────────────────────────────────────────────────────────
-new Worker<AnalyzeJobData>(QUEUE_NAMES.ANALYZE, async (job) => {
+const analyzeWorker = new Worker<AnalyzeJobData>(QUEUE_NAMES.ANALYZE, async (job) => {
   const { projectId, url } = job.data;
   await updateStatus(projectId, "analyzing", url);
 
@@ -52,9 +68,10 @@ new Worker<AnalyzeJobData>(QUEUE_NAMES.ANALYZE, async (job) => {
     attempts: 3,
   });
 }, workerOpts);
+analyzeWorker.on("failed", (job, err) => void markFailedIfExhausted(job, err, "analyze"));
 
 // ─── Worker 2: Script ─────────────────────────────────────────────────────────
-new Worker<ScriptJobData>(QUEUE_NAMES.SCRIPT, async (job) => {
+const scriptWorker = new Worker<ScriptJobData>(QUEUE_NAMES.SCRIPT, async (job) => {
   const { projectId, url, tone } = job.data;
   await updateStatus(projectId, "scripting");
 
@@ -76,9 +93,10 @@ new Worker<ScriptJobData>(QUEUE_NAMES.SCRIPT, async (job) => {
     attempts: 2,
   });
 }, workerOpts);
+scriptWorker.on("failed", (job, err) => void markFailedIfExhausted(job, err, "script"));
 
 // ─── Worker 3: Automation ─────────────────────────────────────────────────────
-new Worker<AutomationJobData>(QUEUE_NAMES.AUTOMATION, async (job) => {
+const automationWorker = new Worker<AutomationJobData>(QUEUE_NAMES.AUTOMATION, async (job) => {
   const { projectId, url } = job.data;
   await updateStatus(projectId, "recording");
 
@@ -94,9 +112,10 @@ new Worker<AutomationJobData>(QUEUE_NAMES.AUTOMATION, async (job) => {
     attempts: 3,
   });
 }, workerOpts);
+automationWorker.on("failed", (job, err) => void markFailedIfExhausted(job, err, "recording"));
 
 // ─── Worker 4: Voice ─────────────────────────────────────────────────────────
-new Worker<VoiceJobData>(QUEUE_NAMES.VOICE, async (job) => {
+const voiceWorker = new Worker<VoiceJobData>(QUEUE_NAMES.VOICE, async (job) => {
   const { projectId } = job.data;
   await updateStatus(projectId, "voicing");
 
@@ -112,9 +131,10 @@ new Worker<VoiceJobData>(QUEUE_NAMES.VOICE, async (job) => {
     attempts: 2,
   });
 }, workerOpts);
+voiceWorker.on("failed", (job, err) => void markFailedIfExhausted(job, err, "voice"));
 
 // ─── Worker 5: Render ─────────────────────────────────────────────────────────
-new Worker<RenderJobData>(QUEUE_NAMES.RENDER, async (job) => {
+const renderWorker = new Worker<RenderJobData>(QUEUE_NAMES.RENDER, async (job) => {
   const { projectId } = job.data;
   await updateStatus(projectId, "rendering");
 
@@ -183,6 +203,7 @@ new Worker<RenderJobData>(QUEUE_NAMES.RENDER, async (job) => {
 
   console.log(`[Pipeline] ✓ Project ${projectId} complete: ${mp4Path}`);
 }, workerOpts);
+renderWorker.on("failed", (job, err) => void markFailedIfExhausted(job, err, "render"));
 
 export function startWorkers() {
   console.log("[Orchestrator] All pipeline workers started");

@@ -1,7 +1,10 @@
-import { chromium, type Browser, type BrowserContext } from "playwright";
+import { chromium } from "playwright";
 import path from "path";
 import fs from "fs/promises";
 import type { BrowserAction } from "@demo-copilot/types";
+
+/** SPAs and live sites rarely reach `networkidle`; `domcontentloaded` is reliable with a hard cap. */
+const GOTO_OPTS = { waitUntil: "domcontentloaded" as const, timeout: 60_000 };
 
 export type SceneRecording = {
   sceneId: string;
@@ -32,12 +35,12 @@ export async function recordScene(
   const startTime = Date.now();
 
   try {
-    await page.goto(url, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto(url, GOTO_OPTS);
 
     for (const action of actions) {
       switch (action.type) {
         case "navigate":
-          await page.goto(action.url, { waitUntil: "networkidle" });
+          await page.goto(action.url, GOTO_OPTS);
           break;
         case "click":
           await page.click(action.selector, { timeout: 10000 });
