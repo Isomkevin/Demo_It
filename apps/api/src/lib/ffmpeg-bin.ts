@@ -1,9 +1,13 @@
 import * as ffmpegStaticNs from "ffmpeg-static";
 
 /**
- * Path to the ffmpeg-static binary (bundled with the api package).
+ * Resolves the ffmpeg binary: `FFMPEG_PATH` when set (e.g. Docker uses distro ffmpeg),
+ * otherwise the path from `ffmpeg-static`.
  */
 export function resolveFfmpegExecutable(): string {
+  const fromEnv = process.env.FFMPEG_PATH?.trim();
+  if (fromEnv) return fromEnv;
+
   const ns = ffmpegStaticNs as unknown as { default?: unknown };
   const fromDefault = ns.default;
   const candidate =

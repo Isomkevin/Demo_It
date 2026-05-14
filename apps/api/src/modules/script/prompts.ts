@@ -46,7 +46,9 @@ Rules:
 - Narration should be concise (max 2–3 sentences per scene)
 - Focus on value, not feature lists
 - Tone must match the requested demo style
-- Actions must be executable Playwright actions (navigate, click, type, wait, scroll)
+- Actions must be executable Playwright actions: navigate, click, type, wait, scroll, hover, screenshot only (no other "type" values)
+- Every scene MUST include "transition" (cut | fade | zoom_in | zoom_out); use "cut" if unsure
+- CSS selectors MUST come from the Product Map (pages[].components[].selector or flows[].steps[].action.trigger). Do not invent class names or #ids unless they appear there
 - estimatedDurationMs should reflect narration length (avg 150 words/min)
 - Max 6 scenes for MVP
 - Return ONLY valid JSON
@@ -79,11 +81,13 @@ Return a JSON object matching this exact shape:
         { "type": "click", "selector": string } |
         { "type": "type", "selector": string, "text": string } |
         { "type": "wait", "ms": number } |
-        { "type": "scroll", "direction": "down"|"up", "px": number }
+        { "type": "scroll", "direction": "down"|"up", "px": number } |
+        { "type": "hover", "selector": string } |
+        { "type": "screenshot", "label": string }
       ],
       "visualFocus": string,
       "durationMs": number,
-      "transition": "cut"|"fade"|"zoom_in"|"zoom_out"
+      "transition": "cut"|"fade"|"zoom_in"|"zoom_out"   // required on every scene
     }
   ],
   "closingCTA": string,

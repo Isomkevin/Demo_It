@@ -20,7 +20,7 @@ const SceneSchema = z.object({
   actions: z.array(BrowserActionSchema),
   visualFocus: z.string(),
   durationMs: z.number(),
-  transition: z.enum(["cut", "fade", "zoom_in", "zoom_out"]),
+  transition: z.enum(["cut", "fade", "zoom_in", "zoom_out"]).default("cut"),
 });
 
 const DemoScriptSchema = z.object({
@@ -32,6 +32,30 @@ const DemoScriptSchema = z.object({
   estimatedDurationMs: z.number(),
 });
 
+/** LLMs often omit transition or emit one bad action; normalize before strict parse. */
+function normalizeLlmScriptJson(input: unknown): unknown {
+  if (typeof input !== "object" || input === null) return input;
+  const root = { ...(input as Record<string, unknown>) };
+  const scenes = root.scenes;
+  if (!Array.isArray(scenes)) return root;
+  root.scenes = scenes.map((scene, sceneIdx) => {
+    if (typeof scene !== "object" || scene === null) return scene;
+    const s = { ...(scene as Record<string, unknown>) };
+    if (s.transition === undefined || s.transition === null) s.transition = "cut";
+    const raw = Array.isArray(s.actions) ? s.actions : [];
+    const actions: unknown[] = [];
+    for (let i = 0; i < raw.length; i++) {
+      const r = BrowserActionSchema.safeParse(raw[i]);
+      if (r.success) actions.push(r.data);
+      else console.warn(`[Script] Scene ${sceneIdx} dropping invalid action ${i}`);
+    }
+    return { ...s, actions };
+  });
+  return root;
+}
+
+const DemoScriptSchemaWithPreprocess = z.preprocess(normalizeLlmScriptJson, DemoScriptSchema);
+
 export async function generateScript(
   productMap: ProductMap,
   url: string,
@@ -39,13 +63,13 @@ export async function generateScript(
 ): Promise<DemoScript> {
   console.log(`[Script] Generating ${tone} demo script`);
 
-  const script = await callLLM(
+  const script = await callLLM<DemoScript>(
     SCRIPT_SYSTEM_PROMPT,
     buildScriptPrompt(productMap, tone, url),
-    DemoScriptSchema,
+    DemoScriptSchemaWithPreprocess,
     6000
   );
 
   console.log(`[Script] Generated ${script.scenes.length} scenes`);
-  return script as DemoScript;
+  return script;
 }

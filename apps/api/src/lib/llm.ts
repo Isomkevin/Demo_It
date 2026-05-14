@@ -21,7 +21,7 @@ export const MODEL = useOpenRouter
 export async function callLLM<T>(
   systemPrompt: string,
   userPrompt: string,
-  schema: z.ZodType<T>,
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
   maxTokens = 4096
 ): Promise<T> {
   let lastError: unknown;

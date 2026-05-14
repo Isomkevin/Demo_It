@@ -1,4 +1,4 @@
-import { chromium } from "playwright";
+import { chromium, type Page } from "playwright";
 import path from "path";
 import fs from "fs/promises";
 import type { BrowserAction } from "@demo-copilot/types";
@@ -11,6 +11,13 @@ export type SceneRecording = {
   videoPath: string;
   durationMs: number;
 };
+
+const INTERACT_TIMEOUT = 25_000;
+
+async function scrollLocatorIntoView(page: Page, selector: string): Promise<void> {
+  const loc = page.locator(selector).first();
+  await loc.scrollIntoViewIfNeeded({ timeout: 8_000 }).catch(() => {});
+}
 
 export async function recordScene(
   sceneId: string,
@@ -43,10 +50,12 @@ export async function recordScene(
           await page.goto(action.url, GOTO_OPTS);
           break;
         case "click":
-          await page.click(action.selector, { timeout: 10000 });
+          await scrollLocatorIntoView(page, action.selector);
+          await page.locator(action.selector).first().click({ timeout: INTERACT_TIMEOUT });
           break;
         case "type":
-          await page.fill(action.selector, action.text);
+          await scrollLocatorIntoView(page, action.selector);
+          await page.locator(action.selector).first().fill(action.text, { timeout: INTERACT_TIMEOUT });
           break;
         case "wait":
           await page.waitForTimeout(action.ms);
@@ -58,7 +67,8 @@ export async function recordScene(
           );
           break;
         case "hover":
-          await page.hover(action.selector, { timeout: 10000 });
+          await scrollLocatorIntoView(page, action.selector);
+          await page.locator(action.selector).first().hover({ timeout: INTERACT_TIMEOUT });
           break;
         case "screenshot":
           await page.screenshot({
