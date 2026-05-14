@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
+import { enqueuePipeline } from "../modules/orchestrator/queue";
 
 const CreateProjectBody = z.object({
   url: z.string().url(),
@@ -22,7 +23,9 @@ export async function projectRoutes(fastify: FastifyInstance) {
       },
     });
 
-    return reply.status(201).send({ project });
+    await enqueuePipeline(project.id, body.url, body.tone || "marketing");
+
+    return reply.status(201).send({ project, jobId: `analyze-${project.id}` });
   });
 
   // List projects
