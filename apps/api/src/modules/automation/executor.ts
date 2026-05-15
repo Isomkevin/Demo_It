@@ -90,14 +90,14 @@ async function resilientPointerAction(
   selector: string,
   mode: "click" | "hover",
   timeout: number
-): Promise<void> {
+): Promise<boolean> {
   const primary = page.locator(selector).first();
   await primary.scrollIntoViewIfNeeded({ timeout: 8_000 }).catch(() => {});
 
   const primaryTimeout = Math.min(12_000, timeout);
   if (mode === "click") {
-    if (await tryClick(primary, primaryTimeout)) return;
-  } else if (await tryHover(primary, primaryTimeout)) return;
+    if (await tryClick(primary, primaryTimeout)) return true;
+  } else if (await tryHover(primary, primaryTimeout)) return true;
 
   const label = extractHasTextLabel(selector);
   const phrases = label ? expandedSearchPhrases(label) : [];
@@ -112,16 +112,31 @@ async function resilientPointerAction(
     ];
     for (const loc of candidates) {
       if (mode === "click") {
-        if (await tryClick(loc, timeout)) return;
-      } else if (await tryHover(loc, timeout)) return;
+        if (await tryClick(loc, timeout)) return true;
+      } else if (await tryHover(loc, timeout)) return true;
     }
   }
 
-  if (mode === "click") {
-    await primary.click({ timeout });
-  } else {
-    await primary.hover({ timeout });
+  return false;
+}
+
+async function dismissCommonOverlays(page: Page): Promise<void> {
+  const patterns = [
+    /accept all cookies/i,
+    /accept cookies/i,
+    /got it/i,
+    /allow all/i,
+    /agree/i,
+    /close/i,
+  ];
+  for (const re of patterns) {
+    const btn = page.getByRole("button", { name: re });
+    if (await tryClick(btn, 2_500)) return;
   }
+}
+
+async function gentleScroll(page: Page, px = 400): Promise<void> {
+  await page.evaluate((amount) => window.scrollBy(0, amount), px).catch(() => {});
 }
 
 async function scrollLocatorIntoView(page: Page, selector: string): Promise<void> {
@@ -153,36 +168,61 @@ export async function recordScene(
 
   try {
     await page.goto(url, GOTO_OPTS);
+    await dismissCommonOverlays(page);
 
     for (const action of actions) {
-      switch (action.type) {
-        case "navigate":
-          await page.goto(action.url, GOTO_OPTS);
-          break;
-        case "click":
-          await resilientPointerAction(page, action.selector, "click", INTERACT_TIMEOUT);
-          break;
-        case "type":
-          await scrollLocatorIntoView(page, action.selector);
-          await page.locator(action.selector).first().fill(action.text, { timeout: INTERACT_TIMEOUT });
-          break;
-        case "wait":
-          await page.waitForTimeout(action.ms);
-          break;
-        case "scroll":
-          await page.evaluate(
-            ({ direction, px }) => window.scrollBy(0, direction === "down" ? (px || 400) : -(px || 400)),
-            { direction: action.direction, px: action.px }
-          );
-          break;
-        case "hover":
-          await resilientPointerAction(page, action.selector, "hover", INTERACT_TIMEOUT);
-          break;
-        case "screenshot":
-          await page.screenshot({
-            path: path.join(segmentsDir, `${sceneId}-${action.label}.png`),
-          });
-          break;
+      try {
+        switch (action.type) {
+          case "navigate":
+            await page.goto(action.url, GOTO_OPTS);
+            await dismissCommonOverlays(page);
+            break;
+          case "click": {
+            const ok = await resilientPointerAction(page, action.selector, "click", INTERACT_TIMEOUT);
+            if (!ok) {
+              console.warn(`[Automation] [${sceneId}] click missed: ${action.selector}`);
+              await gentleScroll(page);
+            }
+            break;
+          }
+          case "type": {
+            await scrollLocatorIntoView(page, action.selector);
+            const input = page.locator(action.selector).first();
+            try {
+              await input.fill(action.text, { timeout: INTERACT_TIMEOUT });
+            } catch {
+              console.warn(`[Automation] [${sceneId}] type missed: ${action.selector}`);
+              await gentleScroll(page);
+            }
+            break;
+          }
+          case "wait":
+            await page.waitForTimeout(action.ms);
+            break;
+          case "scroll":
+            await page.evaluate(
+              ({ direction, px }) => window.scrollBy(0, direction === "down" ? (px || 400) : -(px || 400)),
+              { direction: action.direction, px: action.px }
+            );
+            break;
+          case "hover": {
+            const ok = await resilientPointerAction(page, action.selector, "hover", INTERACT_TIMEOUT);
+            if (!ok) {
+              console.warn(`[Automation] [${sceneId}] hover missed: ${action.selector}`);
+              await gentleScroll(page);
+            }
+            break;
+          }
+          case "screenshot":
+            await page.screenshot({
+              path: path.join(segmentsDir, `${sceneId}-${action.label}.png`),
+            });
+            break;
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.warn(`[Automation] [${sceneId}] action ${action.type} error (continuing): ${msg}`);
+        await gentleScroll(page);
       }
       await page.waitForTimeout(500); // small buffer between actions
     }

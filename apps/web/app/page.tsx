@@ -61,15 +61,17 @@ export default function Home() {
               Live studio
             </motion.div>
 
-            <motion.h1
-              variants={item}
-              className="relative mt-4 bg-gradient-to-br from-white via-zinc-100 to-zinc-400 bg-clip-text text-4xl font-bold tracking-tight text-transparent [text-shadow:0_0_80px_rgba(168,85,247,0.25)] sm:text-5xl"
-            >
-              Demo{" "}
-              <span className="bg-gradient-to-r from-cyan-300 via-fuchsia-400 to-amber-300 bg-clip-text text-transparent">
-                Copilot
-              </span>
-            </motion.h1>
+            <motion.div variants={item} className="relative mt-4">
+              <h1 className="bg-gradient-to-br from-white via-zinc-100 to-zinc-400 bg-clip-text text-4xl font-bold tracking-tight text-transparent [text-shadow:0_0_80px_rgba(168,85,247,0.25)] sm:text-5xl">
+                Demo{" "}
+                <span className="bg-gradient-to-r from-cyan-300 via-fuchsia-400 to-amber-300 bg-clip-text text-transparent">
+                  It
+                </span>
+              </h1>
+              <p className="mt-1.5 font-mono text-sm font-normal italic tracking-wide text-zinc-500 sm:text-base">
+                your Demo Copilot
+              </p>
+            </motion.div>
 
             <motion.p variants={item} className="relative mt-3 max-w-md text-pretty text-sm leading-relaxed text-zinc-400 sm:text-base">
               Generate cinematic product demos from any URL — polished motion, tone-aware pacing, and

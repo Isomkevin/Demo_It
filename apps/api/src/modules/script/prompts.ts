@@ -49,6 +49,7 @@ Rules:
 - Actions must be executable Playwright actions: navigate, click, type, wait, scroll, hover, screenshot only (no other "type" values)
 - Every scene MUST include "transition" (cut | fade | zoom_in | zoom_out); use "cut" if unsure
 - CSS selectors MUST come from the Product Map (pages[].components[].selector or flows[].steps[].action.trigger). Do not invent class names or #ids unless they appear there
+- Prefer scroll and wait actions over click/hover when selectors are uncertain; use :has-text("…") or getByRole-friendly labels from the map, never fabricated #ids
 - estimatedDurationMs should reflect narration length (avg 150 words/min)
 - Max 6 scenes for MVP
 - Return ONLY valid JSON

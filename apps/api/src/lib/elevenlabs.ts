@@ -1,6 +1,7 @@
 import { ElevenLabsClient } from "elevenlabs";
 import fs from "fs/promises";
 import path from "path";
+import { generateMockNarration, shouldFallbackToMockVoice, voiceMockEnabled } from "./voice-mock";
 
 const client = new ElevenLabsClient({
   apiKey: process.env.ELEVENLABS_API_KEY,
@@ -23,9 +24,28 @@ export async function generateNarration(
   outputPath: string,
   voiceId: string = DEFAULT_VOICE_ID
 ): Promise<GeneratedAudio> {
+  if (voiceMockEnabled()) {
+    return generateMockNarration(text, outputPath);
+  }
+
   // Ensure directory exists
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
 
+  try {
+    return await generateNarrationFromElevenLabs(text, outputPath, voiceId);
+  } catch (err) {
+    if (shouldFallbackToMockVoice(err)) {
+      return generateMockNarration(text, outputPath);
+    }
+    throw err;
+  }
+}
+
+async function generateNarrationFromElevenLabs(
+  text: string,
+  outputPath: string,
+  voiceId: string
+): Promise<GeneratedAudio> {
   const audio = await client.textToSpeech.convert(voiceId, {
     text,
     model_id: "eleven_turbo_v2_5",
