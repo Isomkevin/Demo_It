@@ -68,13 +68,29 @@ export default function Home() {
                   It
                 </span>
               </h1>
-              <p className="mt-1.5 font-mono text-sm font-normal italic tracking-wide text-zinc-500 sm:text-base">
-                your Demo Copilot
+              <p className="mt-3.5 flex flex-wrap items-center gap-2.5">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.24em] text-zinc-500 backdrop-blur-sm">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-fuchsia-400/50 opacity-60" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-gradient-to-br from-cyan-400 to-fuchsia-400" />
+                  </span>
+                  your
+                </span>
+                <span
+                  className="hidden h-3 w-px shrink-0 bg-gradient-to-b from-transparent via-white/20 to-transparent sm:block"
+                  aria-hidden
+                />
+                <span className="text-[15px] leading-snug tracking-tight text-zinc-400 sm:text-base">
+                  <span className="font-medium text-zinc-200">Demo</span>{" "}
+                  <span className="bg-gradient-to-r from-cyan-300 via-fuchsia-300 to-amber-200 bg-[length:200%_auto] bg-clip-text font-semibold text-transparent animate-shimmer">
+                    Copilot
+                  </span>
+                </span>
               </p>
             </motion.div>
 
             <motion.p variants={item} className="relative mt-3 max-w-md text-pretty text-sm leading-relaxed text-zinc-400 sm:text-base">
-              Generate cinematic product demos from any URL — polished motion, tone-aware pacing, and
+              Generate cinematic product demos from any URL, polished motion, tone-aware pacing, and
               a launch-ready storyboard in one flow.
             </motion.p>
 
