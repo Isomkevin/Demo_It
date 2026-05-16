@@ -55,7 +55,7 @@ export default function Home() {
             </h1>
 
             <p className="mt-5 max-w-lg text-pretty text-base leading-relaxed text-muted sm:text-lg">
-              Paste your site. We analyze the UI, script a story, record the walkthrough, and narrate it—like{" "}
+              Paste your site. We analyze the UI, script a story, record the walkthrough, and narrate it like{" "}
               <a
                 href="https://labs.google.com/pomelli"
                 target="_blank"
