@@ -152,6 +152,7 @@ export type Project = {
   name: string;
   tone: DemoTone;
   status: PipelineStage;
+  errorMessage?: string;
   videoUrl?: string;
   createdAt: Date;
   updatedAt: Date;

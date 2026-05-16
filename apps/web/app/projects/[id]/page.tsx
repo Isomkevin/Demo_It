@@ -11,7 +11,10 @@ import { GradientCta } from "@/components/theme/GradientCta";
 import { LabsNav } from "@/components/layout/LabsNav";
 import { LaunchPostPreview } from "@/components/project/LaunchPostPreview";
 import { PipelineTimeline, type PipelineStage } from "@/components/project/PipelineTimeline";
+import { ProjectMeta } from "@/components/project/ProjectMeta";
+import { DemoVideoPlayer } from "@/components/project/DemoVideoPlayer";
 import { videoPlaybackUrl } from "@/lib/video-playback";
+import { useElapsedTime, formatElapsed } from "@/hooks/useElapsedTime";
 
 const STAGES: PipelineStage[] = [
   { key: "queued", label: "Queued", description: "Job accepted and waiting for workers." },
@@ -27,6 +30,14 @@ const STAGES: PipelineStage[] = [
 export default function ProjectPage({ params }: { params: { id: string } }) {
   const { status, done } = useProjectStatus(params.id);
   const [project, setProject] = useState<ApiProject | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  useEffect(() => {
+    api
+      .getProject(params.id)
+      .then((res) => setProject(res.project))
+      .catch(console.error);
+  }, [params.id]);
 
   useEffect(() => {
     if (done) {
@@ -34,10 +45,23 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     }
   }, [done, params.id]);
 
-  const stageKey = status?.stage ?? "queued";
+  const stageKey = status?.stage ?? project?.status ?? "queued";
   const progress = status?.progress ?? 0;
   const failed = stageKey === "failed";
+  const inProgress = !failed && !done;
   const completed = done && project?.videoUrl;
+  const elapsed = useElapsedTime(project?.createdAt, inProgress);
+  const playback = project ? videoPlaybackUrl(project.id, project.videoUrl) : null;
+
+  async function copyPageLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      setLinkCopied(false);
+    }
+  }
 
   return (
     <DemoShell>
@@ -60,9 +84,18 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
             </svg>
             Back to studio
           </Link>
-          <span className="rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11px] text-muted">
-            {params.id.slice(0, 8)}…
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={copyPageLink}
+              className="rounded-full border border-border bg-surface px-3 py-1 text-[11px] font-medium text-muted transition hover:text-foreground"
+            >
+              {linkCopied ? "Link copied" : "Copy link"}
+            </button>
+            <span className="rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11px] text-muted">
+              {params.id.slice(0, 8)}…
+            </span>
+          </div>
         </div>
 
         <motion.h1
@@ -76,21 +109,50 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           {completed
             ? "Preview below or download the MP4 for your launch."
             : failed
-              ? "Something went wrong in the pipeline. Head back and try again."
-              : "We’re running the full agentic pipeline—this usually takes a few minutes."}
+              ? "Something went wrong in the pipeline. See details below or start a new run."
+              : "We’re running the full agentic pipeline—typically 3–8 minutes depending on site complexity."}
         </p>
+
+        {project ? <ProjectMeta project={project} /> : null}
+
+        {inProgress && project ? (
+          <p className="mt-3 text-xs text-muted">
+            Elapsed: <span className="font-mono font-medium text-foreground">{formatElapsed(elapsed)}</span>
+            {" · "}Usually finishes in under 10 minutes
+          </p>
+        ) : null}
 
         <div className="mt-8 grid gap-6 lg:grid-cols-5 lg:gap-8">
           <GlassCard className="lg:col-span-2" elevated innerClassName="!p-6 sm:!p-7">
             {failed ? (
               <div className="rounded-xl border border-red-200 bg-red-50 p-5">
                 <h2 className="font-semibold text-red-800">Pipeline error</h2>
-                <p className="mt-2 text-sm text-red-700/90">
-                  Check API logs and environment keys, then start a new run from the home page.
-                </p>
-                <Link href="/" className="mt-4 inline-flex text-sm font-semibold text-accent hover:underline">
-                  Start over
-                </Link>
+                {project?.errorMessage ? (
+                  <p className="mt-2 rounded-lg bg-red-100/80 px-3 py-2 font-mono text-xs leading-relaxed text-red-900">
+                    {project.errorMessage}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-red-700/90">
+                    Check API logs and environment keys, then start a new run from the home page.
+                  </p>
+                )}
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Link
+                    href="/"
+                    className="inline-flex text-sm font-semibold text-accent hover:underline"
+                  >
+                    Start over
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      api.getProject(params.id).then((res) => setProject(res.project)).catch(console.error);
+                    }}
+                    className="text-sm font-medium text-muted hover:text-foreground"
+                  >
+                    Refresh status
+                  </button>
+                </div>
               </div>
             ) : (
               <PipelineTimeline stages={STAGES} currentKey={stageKey} progress={progress} />
@@ -98,22 +160,15 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           </GlassCard>
 
           <GlassCard className="lg:col-span-3" elevated innerClassName="!p-4 sm:!p-5">
-            {completed && project ? (
+            {completed && project && playback ? (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="flex flex-col gap-5"
               >
-                <div className="overflow-hidden rounded-xl border border-border bg-stone-900 aspect-video">
-                  <video
-                    src={videoPlaybackUrl(project.id, project.videoUrl) ?? undefined}
-                    controls
-                    className="h-full w-full object-contain"
-                    autoPlay
-                  />
-                </div>
+                <DemoVideoPlayer src={playback} downloadHref={playback} />
                 <div className="flex flex-wrap gap-3 px-1 pb-1">
-                  <GradientCta href={videoPlaybackUrl(project.id, project.videoUrl) ?? "#"} download>
+                  <GradientCta href={playback} download>
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path
                         strokeLinecap="round"
@@ -139,11 +194,22 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 animate={{ opacity: 1 }}
                 className="flex aspect-video flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface-muted/60 p-8 text-center"
               >
-                <div className="mb-4 h-12 w-12 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
-                <p className="text-sm font-medium text-foreground">Preview will appear here</p>
-                <p className="mt-1 max-w-xs text-xs text-muted">
-                  Recording, voice, and render must finish before your video is ready.
-                </p>
+                {failed ? (
+                  <>
+                    <p className="text-sm font-medium text-foreground">No preview available</p>
+                    <p className="mt-1 max-w-xs text-xs text-muted">
+                      The pipeline did not produce a video. Check the error details and try again.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="mb-4 h-12 w-12 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
+                    <p className="text-sm font-medium text-foreground">Preview will appear here</p>
+                    <p className="mt-1 max-w-xs text-xs text-muted">
+                      Recording, voice, and render must finish before your video is ready.
+                    </p>
+                  </>
+                )}
               </motion.div>
             )}
           </GlassCard>

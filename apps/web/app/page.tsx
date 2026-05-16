@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { api } from "@/lib/api-client";
+import { formatApiError } from "@/lib/api-errors";
+import { notifyHistoryChanged } from "@/lib/history-events";
+import { useApiHealth } from "@/hooks/useApiHealth";
 import { DemoShell } from "@/components/theme/DemoShell";
 import { GlassCard } from "@/components/theme/GlassCard";
 import { GradientCtaButton } from "@/components/theme/GradientCtaButton";
@@ -19,6 +22,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const apiHealthy = useApiHealth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,9 +30,10 @@ export default function Home() {
     setError(null);
     try {
       const { project } = await api.createProject({ url, tone });
+      notifyHistoryChanged();
       router.push(`/projects/${project.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create project");
+      setError(formatApiError(err));
       setLoading(false);
     }
   };
@@ -36,6 +41,13 @@ export default function Home() {
   return (
     <DemoShell>
       <LabsNav />
+
+      {apiHealthy === false ? (
+        <div className="relative z-10 border-b border-amber-200 bg-amber-50 px-5 py-2.5 text-center text-sm text-amber-900">
+          API unreachable — run <code className="rounded bg-amber-100 px-1 font-mono text-xs">pnpm dev</code> and
+          check port 3001.
+        </div>
+      ) : null}
 
       <section className="relative z-10 mx-auto max-w-6xl px-5 pb-16 pt-12 sm:px-8 sm:pt-16 lg:pb-24">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">

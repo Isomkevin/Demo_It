@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { PipelineStage } from "@demo-copilot/types";
 import { api, type ApiProject } from "@/lib/api-client";
+import { HISTORY_CHANGED_EVENT } from "@/lib/history-events";
 import {
   displayHost,
   formatRelativeTime,
@@ -52,25 +53,38 @@ export function HistoryDropdown() {
   const [error, setError] = useState<string | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const { projects: list } = await api.getProjects();
       setProjects(list);
       setHasLoaded(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load history");
-      setProjects([]);
+      if (!silent) {
+        setError(err instanceof Error ? err.message : "Could not load history");
+        setProjects([]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    void load(true);
+  }, [load]);
+
+  useEffect(() => {
+    const onHistoryChanged = () => void load(true);
+    window.addEventListener(HISTORY_CHANGED_EVENT, onHistoryChanged);
+    return () => window.removeEventListener(HISTORY_CHANGED_EVENT, onHistoryChanged);
+  }, [load]);
+
+  useEffect(() => {
     if (open && !hasLoaded && !loading) {
-      load();
+      void load();
     }
   }, [open, hasLoaded, loading, load]);
 
@@ -94,7 +108,7 @@ export function HistoryDropdown() {
 
   useEffect(() => {
     if (!open) return;
-    const onFocus = () => load();
+    const onFocus = () => void load(true);
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [open, load]);
@@ -139,11 +153,12 @@ export function HistoryDropdown() {
       <AnimatePresence>
         {open ? (
           <motion.div
+            ref={panelRef}
             initial={{ opacity: 0, y: -6, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-[calc(100%+8px)] z-50 w-[min(100vw-2.5rem,22rem)] overflow-hidden rounded-xl border border-border bg-surface shadow-[0_12px_40px_-8px_rgb(28_25_23/0.18)]"
+            className="fixed left-4 right-4 top-[calc(3.5rem+8px)] z-50 mx-auto max-w-sm overflow-hidden rounded-xl border border-border bg-surface shadow-[0_12px_40px_-8px_rgb(28_25_23/0.18)] sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+8px)] sm:mx-0 sm:w-[22rem]"
             role="listbox"
             aria-label="Demo history"
           >
@@ -151,7 +166,7 @@ export function HistoryDropdown() {
               <span className="text-xs font-semibold uppercase tracking-wider text-muted">Your demos</span>
               <button
                 type="button"
-                onClick={load}
+                onClick={() => void load()}
                 disabled={loading}
                 className="text-xs font-medium text-accent hover:underline disabled:opacity-50"
               >
@@ -160,7 +175,7 @@ export function HistoryDropdown() {
             </div>
 
             <div className="max-h-[min(60vh,320px)] overflow-y-auto">
-              {loading && !hasLoaded ? (
+              {loading && projects.length === 0 ? (
                 <div className="flex items-center justify-center gap-2 px-4 py-10">
                   <div className="h-5 w-5 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
                   <span className="text-sm text-muted">Loading…</span>
@@ -170,7 +185,7 @@ export function HistoryDropdown() {
                   <p className="text-sm text-red-700">{error}</p>
                   <button
                     type="button"
-                    onClick={load}
+                    onClick={() => void load()}
                     className="mt-2 text-xs font-semibold text-accent hover:underline"
                   >
                     Try again

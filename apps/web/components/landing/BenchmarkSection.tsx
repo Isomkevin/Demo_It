@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 type Cell = "yes" | "partial" | "no" | string;
 
@@ -55,65 +56,112 @@ function StatusBadge({ value }: { value: Cell }) {
 }
 
 export function BenchmarkSection() {
-  return (
-    <section id="benchmark" className="scroll-mt-20 py-20 sm:py-24">
-      <div className="mx-auto max-w-6xl px-5 sm:px-8">
-        <div className="mx-auto max-w-2xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-warm">Benchmark</p>
-          <h2 className="mt-3 text-balance text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Demo It vs Google Pomelli
-          </h2>
-          <p className="mt-4 text-pretty text-base leading-relaxed text-muted">
-            Pomelli excels at on-brand marketing creatives for SMBs. Demo It targets the gap: polished{" "}
-            <strong className="font-medium text-foreground">product demo videos</strong> with narration
-            and screen capture—ideal for launches, onboarding, and investor decks.
-          </p>
-        </div>
+  const [expanded, setExpanded] = useState(false);
 
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="surface-card-elevated mt-12 overflow-hidden rounded-2xl"
+  return (
+    <section id="benchmark" className="scroll-mt-20 py-16 sm:py-20">
+      <div className="mx-auto max-w-6xl px-5 sm:px-8">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="flex w-full flex-col items-center gap-3 text-center transition hover:opacity-90 sm:flex-row sm:justify-between sm:text-left"
         >
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[520px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-border bg-surface-muted/80">
-                  <th className="px-5 py-4 font-semibold text-foreground">Capability</th>
-                  <th className="px-5 py-4 font-semibold text-accent">Demo It</th>
-                  <th className="px-5 py-4 font-semibold text-muted">
-                    <a
-                      href="https://labs.google.com/pomelli"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:text-foreground hover:underline"
-                    >
-                      Pomelli
-                    </a>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {ROWS.map((row, i) => (
-                  <tr
-                    key={row.feature}
-                    className={i % 2 === 0 ? "bg-surface" : "bg-surface-muted/40"}
-                  >
-                    <td className="px-5 py-3.5 font-medium text-foreground">{row.feature}</td>
-                    <td className="px-5 py-3.5">
-                      <StatusBadge value={row.demoIt} />
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <StatusBadge value={row.pomelli} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-warm">Benchmark</p>
+            <h2 className="mt-2 text-balance text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              Demo It vs Google Pomelli
+            </h2>
+            <p className="mt-2 max-w-2xl text-sm text-muted sm:mx-0 sm:text-base">
+              {expanded
+                ? "Side-by-side capabilities for judges and reviewers."
+                : "Tap to compare video demos vs on-brand social creatives."}
+            </p>
           </div>
-          
-        </motion.div>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground">
+            {expanded ? "Hide" : "Show"} comparison
+            <svg
+              className={`h-4 w-4 transition ${expanded ? "rotate-180" : ""}`}
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden
+            >
+              <path
+                d="M6 9l6 6 6-6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </button>
+
+        <AnimatePresence initial={false}>
+          {expanded ? (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="overflow-hidden"
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="surface-card-elevated mt-8 overflow-hidden rounded-2xl"
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[520px] text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-surface-muted/80">
+                        <th className="px-5 py-4 font-semibold text-foreground">Capability</th>
+                        <th className="px-5 py-4 font-semibold text-accent">Demo It</th>
+                        <th className="px-5 py-4 font-semibold text-muted">
+                          <a
+                            href="https://labs.google.com/pomelli"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-foreground hover:underline"
+                          >
+                            Pomelli
+                          </a>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ROWS.map((row, i) => (
+                        <tr
+                          key={row.feature}
+                          className={i % 2 === 0 ? "bg-surface" : "bg-surface-muted/40"}
+                        >
+                          <td className="px-5 py-3.5 font-medium text-foreground">{row.feature}</td>
+                          <td className="px-5 py-3.5">
+                            <StatusBadge value={row.demoIt} />
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <StatusBadge value={row.pomelli} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="border-t border-border bg-surface-muted/50 px-5 py-3 text-xs text-muted">
+                  Reference:{" "}
+                  <a
+                    href="https://blog.google/technology/google-labs/pomelli"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent hover:underline"
+                  >
+                    Google Labs — Introducing Pomelli
+                  </a>
+                </p>
+              </motion.div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
     </section>
   );

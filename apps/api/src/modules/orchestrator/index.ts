@@ -25,9 +25,20 @@ const workerOpts = { connection: redis };
 async function updateStatus(projectId: string, stage: PipelineStage, message = "") {
   await prisma.project.update({
     where: { id: projectId },
-    data: { status: stage },
+    data: {
+      status: stage,
+      ...(stage !== "failed" ? { errorMessage: null } : {}),
+    },
   });
   console.log(`[Pipeline] [${projectId}] ${stage}: ${message}`);
+}
+
+async function markProjectFailed(projectId: string, err: Error) {
+  const errorMessage = (err.message || String(err)).slice(0, 500);
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { status: "failed", errorMessage },
+  });
 }
 
 async function markFailedIfExhausted(
@@ -40,7 +51,7 @@ async function markFailedIfExhausted(
   if (job.attemptsMade < max) return;
   console.error(`[Pipeline] [${job.data.projectId}] ${label} failed permanently:`, err);
   try {
-    await updateStatus(job.data.projectId, "failed");
+    await markProjectFailed(job.data.projectId, err);
   } catch (e) {
     console.error("[Pipeline] Could not set failed status:", e);
   }
@@ -158,7 +169,7 @@ const renderWorker = new Worker<RenderJobData>(QUEUE_NAMES.RENDER, async (job) =
   try {
     mp4Path = await renderTimelineToMP4(timeline, projectId, OUTPUT_DIR);
   } catch (err) {
-    await updateStatus(projectId, "failed");
+    await markProjectFailed(projectId, err instanceof Error ? err : new Error(String(err)));
     throw err;
   }
 

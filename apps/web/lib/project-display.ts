@@ -39,6 +39,17 @@ export function formatRelativeTime(iso: string): string {
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
+export const TONE_LABELS: Record<string, string> = {
+  marketing: "Marketing",
+  investor: "Investor",
+  user_onboarding: "Onboarding",
+  tutorial: "Tutorial",
+};
+
+export function toneLabel(tone: string): string {
+  return TONE_LABELS[tone] ?? tone.replace(/_/g, " ");
+}
+
 export function displayHost(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
