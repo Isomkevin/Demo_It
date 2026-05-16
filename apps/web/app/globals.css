@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Geist via public URLs — avoids next/font/local + webpack when repo path contains `#`. */
 @font-face {
   font-family: "Geist Sans";
   src: url("/fonts/GeistVF.woff") format("woff");
@@ -20,17 +19,20 @@
 }
 
 :root {
-  --background: #05040a;
-  --foreground: #f4f4f5;
+  --background: #f6f4f0;
+  --foreground: #1c1917;
+  --surface: #ffffff;
+  --surface-muted: #faf8f5;
+  --border: #e7e2db;
+  --border-strong: #d6cfc4;
+  --muted: #78716c;
+  --accent: #0f766e;
+  --accent-hover: #0d9488;
+  --accent-soft: #ccfbf1;
+  --warm: #ea580c;
+  --warm-soft: #ffedd5;
   --font-geist-sans: "Geist Sans", system-ui, sans-serif;
   --font-geist-mono: "Geist Mono", ui-monospace, monospace;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #05040a;
-    --foreground: #f4f4f5;
-  }
 }
 
 body {
@@ -44,17 +46,31 @@ body {
     text-wrap: balance;
   }
 
-  .bg-grid-fade {
-    background-image:
-      linear-gradient(to right, rgb(255 255 255 / 0.04) 1px, transparent 1px),
-      linear-gradient(to bottom, rgb(255 255 255 / 0.04) 1px, transparent 1px);
-    background-size: 48px 48px;
-    mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 20%, transparent 70%);
+  .surface-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow:
+      0 1px 2px rgb(28 25 23 / 0.04),
+      0 8px 32px -12px rgb(28 25 23 / 0.08);
   }
 
-  .noise-overlay {
-    pointer-events: none;
-    opacity: 0.035;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  .surface-card-elevated {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow:
+      0 2px 4px rgb(28 25 23 / 0.04),
+      0 16px 48px -16px rgb(28 25 23 / 0.12);
+  }
+
+  .dot-grid {
+    background-image: radial-gradient(circle, rgb(120 113 108 / 0.18) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .hero-glow {
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 0%, rgb(204 251 241 / 0.7), transparent 55%),
+      radial-gradient(ellipse 70% 50% at 90% 10%, rgb(255 237 213 / 0.65), transparent 50%),
+      radial-gradient(ellipse 60% 40% at 50% 100%, rgb(15 118 110 / 0.06), transparent 60%);
   }
 }

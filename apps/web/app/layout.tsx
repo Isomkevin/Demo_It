@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Demo It",
-  description: "Generate cinematic product demos from any URL.",
+  title: "Demo It — Cinematic product demos from any URL",
+  description:
+    "Generate polished demo videos with AI scripting, browser capture, and ElevenLabs narration. Benchmarked against Google Pomelli for video-first storytelling.",
   icons: {
     icon: "/favicon.ico",
   },
@@ -16,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-[#05040a] font-sans text-zinc-100 antialiased">{children}</body>
+      <body className="min-h-screen bg-background font-sans text-foreground antialiased">{children}</body>
     </html>
   );
 }

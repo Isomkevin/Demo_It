@@ -9,18 +9,13 @@ export function GradientCtaButton({ children, className = "", disabled, type = "
   return (
     <motion.button
       type={type}
-      whileHover={{ scale: disabled ? 1 : 1.02 }}
-      whileTap={{ scale: disabled ? 1 : 0.98 }}
+      whileHover={{ scale: disabled ? 1 : 1.01 }}
+      whileTap={{ scale: disabled ? 1 : 0.99 }}
       disabled={disabled}
-      className={`group relative mt-2 overflow-hidden rounded-xl px-6 py-4 text-sm font-semibold text-zinc-950 shadow-[0_0_0_1px_rgba(255,255,255,0.15)] transition disabled:cursor-not-allowed disabled:opacity-60 ${className}`.trim()}
+      className={`inline-flex items-center justify-center gap-2 rounded-full bg-accent px-6 py-3.5 text-sm font-semibold text-white shadow-[0_1px_2px_rgb(15_118_110/0.2),0_8px_20px_-6px_rgb(15_118_110/0.45)] transition hover:bg-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50 ${className}`.trim()}
       {...props}
     >
-      <span className="absolute inset-0 bg-gradient-to-r from-cyan-300 via-white to-fuchsia-300 bg-[length:200%_100%] transition-[background-position] duration-500 group-hover:bg-right" />
-      <span
-        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent bg-[length:200%_100%] opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-hover:animate-shimmer"
-        aria-hidden
-      />
-      <span className="relative z-10 flex items-center justify-center gap-2">{children}</span>
+      {children}
     </motion.button>
   );
 }

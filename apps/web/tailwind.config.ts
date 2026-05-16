@@ -11,40 +11,43 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        surface: "var(--surface)",
+        "surface-muted": "var(--surface-muted)",
+        border: "var(--border)",
+        "border-strong": "var(--border-strong)",
+        muted: "var(--muted)",
+        accent: {
+          DEFAULT: "var(--accent)",
+          hover: "var(--accent-hover)",
+          soft: "var(--accent-soft)",
+        },
+        warm: {
+          DEFAULT: "var(--warm)",
+          soft: "var(--warm-soft)",
+        },
       },
       fontFamily: {
         sans: ["var(--font-geist-sans)"],
         mono: ["var(--font-geist-mono)"],
       },
       keyframes: {
-        aurora: {
-          "0%, 100%": { transform: "translate(0, 0) scale(1)" },
-          "33%": { transform: "translate(8%, -6%) scale(1.08)" },
-          "66%": { transform: "translate(-6%, 4%) scale(0.96)" },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-6px)" },
         },
-        auroraReverse: {
-          "0%, 100%": { transform: "translate(0, 0) scale(1)" },
-          "50%": { transform: "translate(-10%, 8%) scale(1.05)" },
+        pulseSoft: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.55" },
         },
-        shimmer: {
-          "0%": { backgroundPosition: "200% center" },
-          "100%": { backgroundPosition: "-200% center" },
-        },
-        borderGlow: {
-          "0%, 100%": { opacity: "0.5" },
-          "50%": { opacity: "1" },
-        },
-        spinSlow: {
-          "0%": { transform: "rotate(0deg)" },
-          "100%": { transform: "rotate(360deg)" },
+        slideUp: {
+          "0%": { opacity: "0", transform: "translateY(12px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
         },
       },
       animation: {
-        aurora: "aurora 22s ease-in-out infinite",
-        "aurora-reverse": "auroraReverse 28s ease-in-out infinite",
-        shimmer: "shimmer 3s ease-in-out infinite",
-        "border-glow": "borderGlow 4s ease-in-out infinite",
-        "spin-slow": "spinSlow 18s linear infinite",
+        float: "float 5s ease-in-out infinite",
+        "pulse-soft": "pulseSoft 2s ease-in-out infinite",
+        "slide-up": "slideUp 0.5s ease-out forwards",
       },
     },
   },
