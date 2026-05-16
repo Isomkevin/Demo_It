@@ -9,17 +9,9 @@ import { DemoShell } from "@/components/theme/DemoShell";
 import { GlassCard } from "@/components/theme/GlassCard";
 import { GradientCta } from "@/components/theme/GradientCta";
 import { LabsNav } from "@/components/layout/LabsNav";
+import { LaunchPostPreview } from "@/components/project/LaunchPostPreview";
 import { PipelineTimeline, type PipelineStage } from "@/components/project/PipelineTimeline";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-function videoPlaybackUrl(project: Pick<ApiProject, "id" | "videoUrl">): string {
-  const url = project.videoUrl;
-  if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
-    return url;
-  }
-  return `${API_BASE}/api/v1/projects/${project.id}/video`;
-}
+import { videoPlaybackUrl } from "@/lib/video-playback";
 
 const STAGES: PipelineStage[] = [
   { key: "queued", label: "Queued", description: "Job accepted and waiting for workers." },
@@ -114,14 +106,14 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
               >
                 <div className="overflow-hidden rounded-xl border border-border bg-stone-900 aspect-video">
                   <video
-                    src={videoPlaybackUrl(project)}
+                    src={videoPlaybackUrl(project.id, project.videoUrl) ?? undefined}
                     controls
                     className="h-full w-full object-contain"
                     autoPlay
                   />
                 </div>
                 <div className="flex flex-wrap gap-3 px-1 pb-1">
-                  <GradientCta href={videoPlaybackUrl(project)} download>
+                  <GradientCta href={videoPlaybackUrl(project.id, project.videoUrl) ?? "#"} download>
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path
                         strokeLinecap="round"
@@ -139,6 +131,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                     Create another
                   </Link>
                 </div>
+                <LaunchPostPreview project={project} />
               </motion.div>
             ) : (
               <motion.div
