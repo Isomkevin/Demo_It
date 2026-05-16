@@ -1,18 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { ApiProject } from "@/lib/api-client";
+import { api, type ApiProject } from "@/lib/api-client";
 import { DemoPostCard } from "@/components/landing/DemoPostCard";
 import { PlatformDraftEditor } from "@/components/project/PlatformDraftEditor";
-import { generatePlatformDrafts } from "@/lib/platform-drafts";
 import {
+  applyAiDrafts,
+  clearAiGenerated,
   defaultPostContent,
   loadActivePlatform,
   loadPostContent,
+  markAiGenerated,
   previewCaption,
   saveActivePlatform,
   savePostContent,
+  wasAiGenerated,
   type PostContent,
 } from "@/lib/post-content";
 import type { SocialPlatformId } from "@/lib/social-platforms";
@@ -48,11 +51,18 @@ export function LaunchPostPreview({ project }: Props) {
   const [content, setContent] = useState<PostContent>(() => defaultPostContent(project));
   const [activePlatform, setActivePlatform] = useState<SocialPlatformId>("linkedin");
   const [editorOpen, setEditorOpen] = useState(true);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const autoAiAttempted = useRef(false);
+  const contentRef = useRef(content);
+  contentRef.current = content;
 
   useEffect(() => {
+    autoAiAttempted.current = false;
     setContent(loadPostContent(project));
     setActivePlatform(loadActivePlatform(project.id));
     setEditorOpen(loadEditorOpen(project.id));
+    setAiError(null);
   }, [project]);
 
   const persist = useCallback(
@@ -62,6 +72,29 @@ export function LaunchPostPreview({ project }: Props) {
     },
     [project.id]
   );
+
+  const generateWithAI = useCallback(async () => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const { brand, handle } = contentRef.current;
+      const result = await api.generateSocialDrafts(project.id, { brand, handle });
+      persist(applyAiDrafts(contentRef.current, result));
+      markAiGenerated(project.id);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "AI draft generation failed");
+    } finally {
+      setAiLoading(false);
+    }
+  }, [project.id, persist]);
+
+  useEffect(() => {
+    if (project.status !== "completed") return;
+    if (wasAiGenerated(project.id)) return;
+    if (autoAiAttempted.current) return;
+    autoAiAttempted.current = true;
+    void generateWithAI();
+  }, [project.id, project.status, generateWithAI]);
 
   const toggleEditor = useCallback(() => {
     setEditorOpen((open) => {
@@ -114,21 +147,14 @@ export function LaunchPostPreview({ project }: Props) {
     [project.id]
   );
 
-  const resetAll = useCallback(() => {
+  const resetTemplates = useCallback(() => {
     const defaults = defaultPostContent(project);
     persist(defaults);
+    clearAiGenerated(project.id);
     setActivePlatform("linkedin");
     saveActivePlatform(project.id, "linkedin");
+    setAiError(null);
   }, [project, persist]);
-
-  const regenerateDrafts = useCallback(() => {
-    const platformDrafts = generatePlatformDrafts(project, content.brand, content.handle);
-    persist({
-      ...content,
-      platformDrafts,
-      caption: platformDrafts.linkedin,
-    });
-  }, [project, content, persist]);
 
   const previewContent: PostContent = {
     ...content,
@@ -143,39 +169,72 @@ export function LaunchPostPreview({ project }: Props) {
         <div>
           <h2 className="text-sm font-semibold text-foreground">Launch post preview</h2>
           <p className="mt-1 text-xs text-muted">
-            {editorOpen
-              ? "Platform-specific drafts for LinkedIn, X, Instagram, and more — attach your MP4 when posting."
-              : `${activeLabel} preview — expand the editor to edit all platform drafts.`}
+            {aiLoading
+              ? "Claude is writing platform-native launch copy from your demo script…"
+              : editorOpen
+                ? "AI-crafted drafts per platform — attach your MP4 when posting."
+                : `${activeLabel} preview — expand the editor to edit all platform drafts.`}
           </p>
+          {aiError ? (
+            <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
+              {aiError}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={regenerateDrafts}
-            className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-muted transition hover:bg-surface-muted hover:text-foreground"
+            onClick={() => void generateWithAI()}
+            disabled={aiLoading}
+            className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Regenerate drafts
+            {aiLoading ? (
+              <>
+                <span className="h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                Generating…
+              </>
+            ) : (
+              "Generate with AI"
+            )}
           </button>
           <button
             type="button"
-            onClick={resetAll}
-            className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-muted transition hover:bg-surface-muted hover:text-foreground"
+            onClick={resetTemplates}
+            disabled={aiLoading}
+            className="rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-muted transition hover:bg-surface-muted hover:text-foreground disabled:opacity-60"
           >
-            Reset all
+            Reset templates
           </button>
         </div>
       </div>
 
       <div
-        className={`grid gap-5 lg:gap-6 ${editorOpen ? "lg:grid-cols-2" : "lg:grid-cols-1"}`}
+        className={`relative grid gap-5 lg:gap-6 ${editorOpen ? "lg:grid-cols-2" : "lg:grid-cols-1"}`}
       >
+        {aiLoading ? (
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/60 backdrop-blur-[2px]"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <div className="flex flex-col items-center gap-3 rounded-xl border border-border bg-surface px-6 py-5 shadow-lg">
+              <div className="h-8 w-8 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
+              <p className="text-sm font-medium text-foreground">Writing launch copy…</p>
+              <p className="max-w-xs text-center text-xs text-muted">
+                Using your demo script + product context for 8 platforms
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         <div className="overflow-hidden rounded-xl border border-border bg-surface-muted/40">
           <button
             type="button"
             onClick={toggleEditor}
+            disabled={aiLoading}
             aria-expanded={editorOpen ? "true" : "false"}
             aria-controls={`post-editor-${project.id}`}
-            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-surface-muted/60 sm:px-5"
+            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-surface-muted/60 disabled:opacity-60 sm:px-5"
           >
             <span className="text-xs font-semibold text-foreground">
               Edit drafts · {activeLabel}
@@ -220,19 +279,20 @@ export function LaunchPostPreview({ project }: Props) {
               <div className="border-t border-border px-4 py-3 sm:px-5">
                 <div className="flex gap-1.5 overflow-x-auto pb-1">
                   {SOCIAL_PLATFORMS.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => selectPlatform(p.id)}
-                        className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition ${
-                          p.id === activePlatform
-                            ? "bg-accent text-white"
-                            : "border border-border bg-surface text-muted hover:text-foreground"
-                        }`}
-                      >
-                        {p.shortLabel}
-                      </button>
-                    ))}
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => selectPlatform(p.id)}
+                      disabled={aiLoading}
+                      className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition ${
+                        p.id === activePlatform
+                          ? "bg-accent text-white"
+                          : "border border-border bg-surface text-muted hover:text-foreground"
+                      } disabled:opacity-60`}
+                    >
+                      {p.shortLabel}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}

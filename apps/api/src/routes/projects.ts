@@ -1,13 +1,28 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import type { DemoScript } from "@demo-copilot/types";
 import { prisma } from "../lib/prisma";
 import { enqueuePipeline } from "../modules/orchestrator/queue";
+import { generateSocialDrafts } from "../modules/social";
 
 const CreateProjectBody = z.object({
   url: z.string().url(),
   name: z.string().optional(),
   tone: z.enum(["investor", "user_onboarding", "marketing", "tutorial"]).optional(),
 });
+
+const SocialDraftsBody = z.object({
+  brand: z.string().min(1).optional(),
+  handle: z.string().min(1).optional(),
+});
+
+function displayHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
 
 export async function projectRoutes(fastify: FastifyInstance) {
   // Create project
@@ -45,4 +60,58 @@ export async function projectRoutes(fastify: FastifyInstance) {
     if (!project) return reply.status(404).send({ error: "Not found" });
     return { project };
   });
+
+  // AI-generated social drafts for launch posts
+  fastify.post<{ Params: { id: string } }>(
+    "/api/v1/projects/:id/social-drafts",
+    async (request, reply) => {
+      const project = await prisma.project.findUnique({
+        where: { id: request.params.id },
+        include: { runs: { orderBy: { createdAt: "desc" }, take: 1 } },
+      });
+      if (!project) return reply.status(404).send({ error: "Not found" });
+
+      if (project.status !== "completed") {
+        return reply.status(400).send({
+          error: "Project must be completed before generating social drafts",
+        });
+      }
+
+      const body = SocialDraftsBody.safeParse(request.body ?? {});
+      const parsed = body.success ? body.data : {};
+
+      const host = displayHost(project.url);
+      const brand = parsed.brand?.trim() || project.name || host;
+      const handle = parsed.handle?.trim() || host.replace(/\./g, "");
+
+      const run = project.runs[0];
+      const script = (run?.script as DemoScript | null) ?? null;
+
+      try {
+        const platformDrafts = await generateSocialDrafts({
+          url: project.url,
+          name: project.name,
+          tone: project.tone,
+          brand,
+          handle,
+          script,
+        });
+
+        return {
+          brand,
+          handle,
+          platformDrafts,
+          caption: platformDrafts.linkedin,
+        };
+      } catch (err) {
+        request.log.error(err, "social-drafts generation failed");
+        return reply.status(502).send({
+          error:
+            err instanceof Error
+              ? err.message
+              : "Failed to generate social drafts. Check API keys and try again.",
+        });
+      }
+    }
+  );
 }

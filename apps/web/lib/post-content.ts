@@ -32,6 +32,34 @@ export function defaultPostContent(project: Pick<ApiProject, "url" | "name" | "t
 
 const STORAGE_PREFIX = "demo-it:post:";
 const ACTIVE_PLATFORM_PREFIX = "demo-it:post-platform:";
+const AI_GENERATED_PREFIX = "demo-it:post-ai-generated:";
+
+export function wasAiGenerated(projectId: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(`${AI_GENERATED_PREFIX}${projectId}`) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markAiGenerated(projectId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(`${AI_GENERATED_PREFIX}${projectId}`, "1");
+  } catch {
+    // ignore
+  }
+}
+
+export function clearAiGenerated(projectId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(`${AI_GENERATED_PREFIX}${projectId}`);
+  } catch {
+    // ignore
+  }
+}
 
 function mergeDrafts(
   defaults: PlatformDrafts,
@@ -44,6 +72,18 @@ function mergeDrafts(
     if (value) merged[key] = value;
   }
   return merged;
+}
+
+export function applyAiDrafts(
+  current: PostContent,
+  result: { brand: string; handle: string; caption: string; platformDrafts: PlatformDrafts }
+): PostContent {
+  return {
+    brand: result.brand,
+    handle: result.handle,
+    caption: result.caption,
+    platformDrafts: result.platformDrafts,
+  };
 }
 
 export function loadPostContent(project: ApiProject): PostContent {

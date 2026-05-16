@@ -1,4 +1,5 @@
 import type { Project } from "@demo-copilot/types";
+import type { PlatformDrafts } from "@/lib/platform-drafts";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -22,4 +23,14 @@ export const api = {
     apiFetch<{ project: { id: string } }>("/api/v1/projects", { method: "POST", body: JSON.stringify(body) }),
   getProjects: () => apiFetch<{ projects: ApiProject[] }>("/api/v1/projects"),
   getProject: (id: string) => apiFetch<{ project: ApiProject }>(`/api/v1/projects/${id}`),
+  generateSocialDrafts: (id: string, body?: { brand?: string; handle?: string }) =>
+    apiFetch<{
+      brand: string;
+      handle: string;
+      caption: string;
+      platformDrafts: PlatformDrafts;
+    }>(`/api/v1/projects/${id}/social-drafts`, {
+      method: "POST",
+      body: JSON.stringify(body ?? {}),
+    }),
 };
