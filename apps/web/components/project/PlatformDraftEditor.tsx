@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { DraftSourceBadge } from "@/components/project/DraftSourceBadge";
 import type { ApiProject } from "@/lib/api-client";
-import type { PostContent } from "@/lib/post-content";
+import type { DraftSource, PostContent } from "@/lib/post-content";
 import type { SocialPlatformId } from "@/lib/social-platforms";
 import { platformById, shareComposerUrl, SOCIAL_PLATFORMS } from "@/lib/social-platforms";
 
@@ -13,6 +14,8 @@ type Props = {
   project: ApiProject;
   content: PostContent;
   activePlatform: SocialPlatformId;
+  draftSource: DraftSource;
+  aiGeneratedAt?: string | null;
   onPlatformChange: (id: SocialPlatformId) => void;
   onUpdateBrand: (brand: string) => void;
   onUpdateHandle: (handle: string) => void;
@@ -36,6 +39,8 @@ export function PlatformDraftEditor({
   project,
   content,
   activePlatform,
+  draftSource,
+  aiGeneratedAt,
   onPlatformChange,
   onUpdateBrand,
   onUpdateHandle,
@@ -124,7 +129,10 @@ export function PlatformDraftEditor({
 
       <div className="rounded-lg border border-border bg-surface/80 p-3">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-semibold text-foreground">{platform.label} draft</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-semibold text-foreground">{platform.label} draft</p>
+            <DraftSourceBadge source={draftSource} generatedAt={aiGeneratedAt} />
+          </div>
           <span className={`text-[11px] tabular-nums ${status.className}`}>{status.label}</span>
         </div>
         <p className="mb-2 text-[11px] leading-relaxed text-muted">{platform.tip}</p>

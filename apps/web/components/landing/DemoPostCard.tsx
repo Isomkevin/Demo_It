@@ -1,16 +1,17 @@
 "use client";
 
 import type { ApiProject } from "@/lib/api-client";
-import { defaultPostContent, type PostContent } from "@/lib/post-content";
+import { defaultPostContent, type DraftSource, type PostContent } from "@/lib/post-content";
 import { videoPlaybackUrl } from "@/lib/video-playback";
 
 type Props = {
   project: ApiProject;
   content?: PostContent;
   platformLabel?: string;
+  draftSource?: DraftSource;
 };
 
-export function DemoPostCard({ project, content, platformLabel }: Props) {
+export function DemoPostCard({ project, content, platformLabel, draftSource }: Props) {
   const src = videoPlaybackUrl(project.id, project.videoUrl);
   const { brand, handle, caption } = content ?? defaultPostContent(project);
   const initial = brand.charAt(0).toUpperCase() || "?";
@@ -46,8 +47,10 @@ export function DemoPostCard({ project, content, platformLabel }: Props) {
         />
       </div>
 
-      <footer className="mt-3 flex items-center gap-4 text-[11px] text-stone-500">
+      <footer className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-stone-500">
         <span>Launch-ready MP4</span>
+        <span aria-hidden>·</span>
+        <span>{draftSource === "ai" ? "AI copy" : "Template copy"}</span>
         <span aria-hidden>·</span>
         <span>Demo It</span>
       </footer>

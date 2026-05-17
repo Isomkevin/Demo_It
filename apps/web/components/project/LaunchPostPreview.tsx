@@ -4,18 +4,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { api, type ApiProject } from "@/lib/api-client";
 import { DemoPostCard } from "@/components/landing/DemoPostCard";
+import { DraftSourceBadge } from "@/components/project/DraftSourceBadge";
 import { PlatformDraftEditor } from "@/components/project/PlatformDraftEditor";
 import {
   applyAiDrafts,
   clearAiGenerated,
   defaultPostContent,
+  getDraftSource,
   loadActivePlatform,
+  loadAiGeneratedAt,
   loadPostContent,
   markAiGenerated,
   previewCaption,
   saveActivePlatform,
   savePostContent,
-  wasAiGenerated,
+  type DraftSource,
   type PostContent,
 } from "@/lib/post-content";
 import type { SocialPlatformId } from "@/lib/social-platforms";
@@ -53,17 +56,23 @@ export function LaunchPostPreview({ project }: Props) {
   const [editorOpen, setEditorOpen] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
-  const autoAiAttempted = useRef(false);
+  const [draftSource, setDraftSource] = useState<DraftSource>("template");
+  const [aiGeneratedAt, setAiGeneratedAt] = useState<string | null>(null);
   const contentRef = useRef(content);
   contentRef.current = content;
 
+  const syncDraftSource = useCallback((projectId: string) => {
+    setDraftSource(getDraftSource(projectId));
+    setAiGeneratedAt(loadAiGeneratedAt(projectId));
+  }, []);
+
   useEffect(() => {
-    autoAiAttempted.current = false;
     setContent(loadPostContent(project));
     setActivePlatform(loadActivePlatform(project.id));
     setEditorOpen(loadEditorOpen(project.id));
     setAiError(null);
-  }, [project]);
+    syncDraftSource(project.id);
+  }, [project, syncDraftSource]);
 
   const persist = useCallback(
     (next: PostContent) => {
@@ -81,20 +90,13 @@ export function LaunchPostPreview({ project }: Props) {
       const result = await api.generateSocialDrafts(project.id, { brand, handle });
       persist(applyAiDrafts(contentRef.current, result));
       markAiGenerated(project.id);
+      syncDraftSource(project.id);
     } catch (err) {
       setAiError(err instanceof Error ? err.message : "AI draft generation failed");
     } finally {
       setAiLoading(false);
     }
-  }, [project.id, persist]);
-
-  useEffect(() => {
-    if (project.status !== "completed") return;
-    if (wasAiGenerated(project.id)) return;
-    if (autoAiAttempted.current) return;
-    autoAiAttempted.current = true;
-    void generateWithAI();
-  }, [project.id, project.status, generateWithAI]);
+  }, [project.id, persist, syncDraftSource]);
 
   const toggleEditor = useCallback(() => {
     setEditorOpen((open) => {
@@ -151,6 +153,8 @@ export function LaunchPostPreview({ project }: Props) {
     const defaults = defaultPostContent(project);
     persist(defaults);
     clearAiGenerated(project.id);
+    setDraftSource("template");
+    setAiGeneratedAt(null);
     setActivePlatform("linkedin");
     saveActivePlatform(project.id, "linkedin");
     setAiError(null);
@@ -167,13 +171,20 @@ export function LaunchPostPreview({ project }: Props) {
     <section className="mt-6 border-t border-border pt-6">
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Launch post preview</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-semibold text-foreground">Launch post preview</h2>
+            {!aiLoading ? (
+              <DraftSourceBadge source={draftSource} generatedAt={aiGeneratedAt} />
+            ) : null}
+          </div>
           <p className="mt-1 text-xs text-muted">
             {aiLoading
               ? "Claude is writing platform-native launch copy from your demo script…"
-              : editorOpen
-                ? "AI-crafted drafts per platform — attach your MP4 when posting."
-                : `${activeLabel} preview — expand the editor to edit all platform drafts.`}
+              : draftSource === "ai"
+                ? "These drafts were written by AI from your demo script. Edit freely or reset to templates."
+                : editorOpen
+                  ? "Showing starter templates — click Generate with AI for platform-native copy (uses API tokens)."
+                  : `${activeLabel} preview — expand the editor to edit drafts or generate with AI.`}
           </p>
           {aiError ? (
             <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
@@ -269,6 +280,8 @@ export function LaunchPostPreview({ project }: Props) {
                   project={project}
                   content={content}
                   activePlatform={activePlatform}
+                  draftSource={draftSource}
+                  aiGeneratedAt={aiGeneratedAt}
                   onPlatformChange={selectPlatform}
                   onUpdateBrand={updateBrand}
                   onUpdateHandle={updateHandle}
@@ -300,14 +313,18 @@ export function LaunchPostPreview({ project }: Props) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <p className="px-1 text-[11px] font-medium text-muted">
-            Preview · {activeLabel}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+            <p className="text-[11px] font-medium text-muted">Preview · {activeLabel}</p>
+            {!aiLoading ? (
+              <DraftSourceBadge source={draftSource} generatedAt={aiGeneratedAt} />
+            ) : null}
+          </div>
           <div className="surface-card-elevated overflow-hidden rounded-2xl p-1">
             <DemoPostCard
               project={project}
               content={previewContent}
               platformLabel={activeLabel}
+              draftSource={draftSource}
             />
           </div>
         </div>

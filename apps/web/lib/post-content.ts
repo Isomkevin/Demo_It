@@ -33,6 +33,9 @@ export function defaultPostContent(project: Pick<ApiProject, "url" | "name" | "t
 const STORAGE_PREFIX = "demo-it:post:";
 const ACTIVE_PLATFORM_PREFIX = "demo-it:post-platform:";
 const AI_GENERATED_PREFIX = "demo-it:post-ai-generated:";
+const AI_GENERATED_AT_PREFIX = "demo-it:post-ai-generated-at:";
+
+export type DraftSource = "template" | "ai";
 
 export function wasAiGenerated(projectId: string): boolean {
   if (typeof window === "undefined") return false;
@@ -43,10 +46,24 @@ export function wasAiGenerated(projectId: string): boolean {
   }
 }
 
+export function loadAiGeneratedAt(projectId: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(`${AI_GENERATED_AT_PREFIX}${projectId}`);
+  } catch {
+    return null;
+  }
+}
+
+export function getDraftSource(projectId: string): DraftSource {
+  return wasAiGenerated(projectId) ? "ai" : "template";
+}
+
 export function markAiGenerated(projectId: string): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(`${AI_GENERATED_PREFIX}${projectId}`, "1");
+    localStorage.setItem(`${AI_GENERATED_AT_PREFIX}${projectId}`, new Date().toISOString());
   } catch {
     // ignore
   }
@@ -56,6 +73,7 @@ export function clearAiGenerated(projectId: string): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(`${AI_GENERATED_PREFIX}${projectId}`);
+    localStorage.removeItem(`${AI_GENERATED_AT_PREFIX}${projectId}`);
   } catch {
     // ignore
   }
