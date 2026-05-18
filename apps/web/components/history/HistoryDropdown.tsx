@@ -53,7 +53,6 @@ export function HistoryDropdown() {
   const [error, setError] = useState<string | null>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -63,10 +62,8 @@ export function HistoryDropdown() {
       setProjects(list);
       setHasLoaded(true);
     } catch (err) {
-      if (!silent) {
-        setError(err instanceof Error ? err.message : "Could not load history");
-        setProjects([]);
-      }
+      setError(err instanceof Error ? err.message : "Could not load history");
+      if (!silent) setProjects([]);
     } finally {
       if (!silent) setLoading(false);
     }
@@ -150,10 +147,10 @@ export function HistoryDropdown() {
         </svg>
       </button>
 
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {open ? (
           <motion.div
-            ref={panelRef}
+            key="history-panel"
             initial={{ opacity: 0, y: -6, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}

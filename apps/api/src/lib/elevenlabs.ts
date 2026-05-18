@@ -77,6 +77,33 @@ async function generateNarrationFromElevenLabs(
  * Get word-level timestamps from ElevenLabs (requires timestamps endpoint).
  * Falls back to even distribution if unavailable.
  */
+export type VoiceListItem = {
+  voiceId: string;
+  name: string;
+  category?: string;
+};
+
+export async function listAvailableVoices(): Promise<VoiceListItem[]> {
+  if (voiceMockEnabled() || !process.env.ELEVENLABS_API_KEY) {
+    return [
+      { voiceId: DEFAULT_VOICE_ID, name: "Rachel (default)" },
+      { voiceId: "EXAVITQu4vr4xnSDxMaL", name: "Bella" },
+      { voiceId: "VR6AewLTigWG4xSOukaG", name: "Arnold" },
+    ];
+  }
+
+  const response = await client.voices.getAll();
+  const voices = response.voices ?? [];
+  return voices
+    .filter((v) => v.voice_id)
+    .map((v) => ({
+      voiceId: v.voice_id!,
+      name: v.name ?? v.voice_id!,
+      category: v.category ?? undefined,
+    }))
+    .slice(0, 24);
+}
+
 export async function getWordTimings(
   text: string,
   durationMs: number

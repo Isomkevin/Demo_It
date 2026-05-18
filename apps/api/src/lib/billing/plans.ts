@@ -1,8 +1,9 @@
 import type { BillingProduct, PlanTier } from "@demo-copilot/types";
+import { normalizePlanTier } from "./plan-features";
 
 export type PlanConfig = {
   tier: PlanTier;
-  monthlyCredits: number;
+  monthlyCredits: number | null;
   defaultSeats: number;
   minSeats?: number;
   maxSeats?: number;
@@ -10,9 +11,9 @@ export type PlanConfig = {
 
 export const PLAN_CONFIG: Record<Exclude<PlanTier, "FREE">, PlanConfig> = {
   STARTER: { tier: "STARTER", monthlyCredits: 5, defaultSeats: 1 },
-  PRO: { tier: "PRO", monthlyCredits: 20, defaultSeats: 1 },
-  TEAM: { tier: "TEAM", monthlyCredits: 60, defaultSeats: 3, minSeats: 3, maxSeats: 10 },
-  AGENCY: { tier: "AGENCY", monthlyCredits: 200, defaultSeats: 1 },
+  PRO: { tier: "PRO", monthlyCredits: null, defaultSeats: 1 },
+  TEAM: { tier: "TEAM", monthlyCredits: null, defaultSeats: 3, minSeats: 3, maxSeats: 10 },
+  ENTERPRISE: { tier: "ENTERPRISE", monthlyCredits: null, defaultSeats: 1 },
 };
 
 export const ONE_TIME_CREDITS: Record<"video_single" | "video_pack_5", number> = {
@@ -29,7 +30,8 @@ export function getPriceId(product: CheckoutProduct): string {
     starter: process.env.STRIPE_PRICE_STARTER,
     pro: process.env.STRIPE_PRICE_PRO,
     team: process.env.STRIPE_PRICE_TEAM,
-    agency: process.env.STRIPE_PRICE_AGENCY,
+    enterprise: process.env.STRIPE_PRICE_ENTERPRISE ?? process.env.STRIPE_PRICE_AGENCY,
+    agency: process.env.STRIPE_PRICE_ENTERPRISE ?? process.env.STRIPE_PRICE_AGENCY,
   };
   const priceId = envMap[product];
   if (!priceId) {
@@ -39,7 +41,13 @@ export function getPriceId(product: CheckoutProduct): string {
 }
 
 export function isSubscriptionProduct(product: CheckoutProduct): boolean {
-  return product === "starter" || product === "pro" || product === "team" || product === "agency";
+  return (
+    product === "starter" ||
+    product === "pro" ||
+    product === "team" ||
+    product === "enterprise" ||
+    product === "agency"
+  );
 }
 
 export function productToPlanTier(product: CheckoutProduct): PlanTier | null {
@@ -47,16 +55,19 @@ export function productToPlanTier(product: CheckoutProduct): PlanTier | null {
     starter: "STARTER",
     pro: "PRO",
     team: "TEAM",
-    agency: "AGENCY",
+    enterprise: "ENTERPRISE",
+    agency: "ENTERPRISE",
   };
   return map[product] ?? null;
 }
 
 export function planTierFromMetadata(value: string | undefined): PlanTier | null {
   if (!value) return null;
-  const normalized = value.toUpperCase() as PlanTier;
-  if (["STARTER", "PRO", "TEAM", "AGENCY"].includes(normalized)) {
-    return normalized;
+  const normalized = value.toUpperCase();
+  if (normalized === "AGENCY") return "ENTERPRISE";
+  const tier = normalized as PlanTier;
+  if (["STARTER", "PRO", "TEAM", "ENTERPRISE"].includes(tier)) {
+    return tier;
   }
   return null;
 }
@@ -67,7 +78,8 @@ export function creditsForProduct(product: CheckoutProduct): number {
   }
   const tier = productToPlanTier(product);
   if (!tier || tier === "FREE") return 0;
-  return PLAN_CONFIG[tier].monthlyCredits;
+  const credits = PLAN_CONFIG[tier].monthlyCredits;
+  return credits ?? 0;
 }
 
 export function defaultQuantityForProduct(product: CheckoutProduct): number {
@@ -78,4 +90,10 @@ export function defaultQuantityForProduct(product: CheckoutProduct): number {
 export function clampTeamQuantity(quantity: number): number {
   const { minSeats = 3, maxSeats = 10 } = PLAN_CONFIG.TEAM;
   return Math.min(maxSeats, Math.max(minSeats, quantity));
+}
+
+export function monthlyCreditsForPlan(plan: PlanTier | string): number {
+  const tier = normalizePlanTier(String(plan));
+  if (tier === "FREE") return 0;
+  return PLAN_CONFIG[tier].monthlyCredits ?? 0;
 }

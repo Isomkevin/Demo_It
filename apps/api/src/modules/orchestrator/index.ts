@@ -18,6 +18,8 @@ import type { DemoScript, DemoTone, PipelineStage } from "@demo-copilot/types";
 import path from "node:path";
 import { resolveOutputDir } from "../../lib/output-dir";
 import { consumeCreditForProject } from "../../lib/billing/credits";
+import { getExportProfile } from "../../lib/billing/plan-features";
+import { DEFAULT_VOICE_ID } from "../../lib/elevenlabs";
 
 const OUTPUT_DIR = resolveOutputDir();
 const workerOpts = { connection: redis };
@@ -117,7 +119,16 @@ const automationWorker = new Worker<AutomationJobData>(QUEUE_NAMES.AUTOMATION, a
   if (!raw) throw new Error("script not found in cache");
   const script: DemoScript = JSON.parse(raw);
 
-  const videoMap = await recordAllScenes(script, projectId, url, OUTPUT_DIR);
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    include: { org: true },
+  });
+  const exportProfile = getExportProfile(project?.org?.plan ?? "FREE");
+
+  const videoMap = await recordAllScenes(script, projectId, url, OUTPUT_DIR, {
+    width: exportProfile.width,
+    height: exportProfile.height,
+  });
   await redis.set(`project:${projectId}:videoMap`, JSON.stringify(videoMap), "EX", 3600);
 
   await voiceQueue.add("voice", { projectId }, {
@@ -136,7 +147,13 @@ const voiceWorker = new Worker<VoiceJobData>(QUEUE_NAMES.VOICE, async (job) => {
   if (!raw) throw new Error("script not found");
   const script: DemoScript = JSON.parse(raw);
 
-  const voiceOutputs = await generateAllNarrations(script, projectId, OUTPUT_DIR);
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    include: { org: true },
+  });
+  const voiceId = project?.org?.voiceId ?? DEFAULT_VOICE_ID;
+
+  const voiceOutputs = await generateAllNarrations(script, projectId, OUTPUT_DIR, voiceId);
   await redis.set(`project:${projectId}:voiceOutputs`, JSON.stringify(voiceOutputs), "EX", 3600);
 
   await renderQueue.add("render", { projectId }, {

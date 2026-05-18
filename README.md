@@ -115,7 +115,7 @@ pnpm --filter=api exec playwright install chromium
 
 ### 5. Start Development Servers
 
-Run the full monorepo (API and Web):
+#### To run both API and Web together (monorepo development):
 
 ```bash
 pnpm dev
@@ -123,6 +123,20 @@ pnpm dev
 
 - **Web App**: http://localhost:3000
 - **API Server**: http://localhost:3001
+
+#### To run servers separately:
+
+In one terminal, start the API server:
+```bash
+pnpm --filter=api dev
+```
+*(API runs at http://localhost:3001)*
+
+In another terminal, start the Web server:
+```bash
+pnpm --filter=web dev
+```
+*(Web runs at http://localhost:3000)*
 
 ### Smoke test
 
@@ -155,4 +169,4 @@ pnpm typecheck
 - `packages/db`: Shared Prisma database schemas (`Organization`, `CreditLedger`, `Project`).
 - `packages/types`: Shared TypeScript definitions (including billing types).
 
-*Built for ElevenHacks — Stripe + ElevenLabs*
+*Submitted for [ElevenHacks Hackathon #7](https://hacks.elevenlabs.io/hackathons/7) and [Hackathon #8](https://hacks.elevenlabs.io/hackathons/8) — Built for ElevenHacks using Cursor + Stripe + ElevenLabs*

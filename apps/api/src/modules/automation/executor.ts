@@ -144,22 +144,25 @@ async function scrollLocatorIntoView(page: Page, selector: string): Promise<void
   await loc.scrollIntoViewIfNeeded({ timeout: 8_000 }).catch(() => {});
 }
 
+export type RecordViewport = { width: number; height: number };
+
 export async function recordScene(
   sceneId: string,
   projectId: string,
   url: string,
   actions: BrowserAction[],
-  outputDir: string
+  outputDir: string,
+  viewport: RecordViewport = { width: 1920, height: 1080 }
 ): Promise<SceneRecording> {
   const segmentsDir = path.join(outputDir, projectId, "segments");
   await fs.mkdir(segmentsDir, { recursive: true });
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
-    viewport: { width: 1920, height: 1080 },
+    viewport,
     recordVideo: {
       dir: segmentsDir,
-      size: { width: 1920, height: 1080 },
+      size: viewport,
     },
   });
   const page = await context.newPage();

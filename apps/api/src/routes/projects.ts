@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { DemoScript } from "@demo-copilot/types";
 import { prisma } from "../lib/prisma";
 import { hasCredits } from "../lib/billing/credits";
+import { getPlanCapabilities } from "../lib/billing/plan-features";
 import { enqueuePipeline } from "../modules/orchestrator/queue";
 import { generateSocialDrafts } from "../modules/social";
 
@@ -56,10 +57,25 @@ export async function projectRoutes(fastify: FastifyInstance) {
 
   // List projects
   fastify.get("/api/v1/projects", async (request) => {
-    const projects = await prisma.project.findMany({
+    let projects = await prisma.project.findMany({
       where: { orgId: request.orgId },
       orderBy: { createdAt: "desc" },
     });
+
+    // Claim legacy rows created before org-scoped billing (local dev / upgrades)
+    if (projects.length === 0) {
+      const claimed = await prisma.project.updateMany({
+        where: { orgId: null },
+        data: { orgId: request.orgId },
+      });
+      if (claimed.count > 0) {
+        projects = await prisma.project.findMany({
+          where: { orgId: request.orgId },
+          orderBy: { createdAt: "desc" },
+        });
+      }
+    }
+
     return { projects };
   });
 
@@ -92,16 +108,20 @@ export async function projectRoutes(fastify: FastifyInstance) {
         });
       }
 
+      let orgBrandName: string | null = null;
       if (project.orgId) {
         const org = await prisma.organization.findUnique({
           where: { id: project.orgId },
         });
-        if (org?.plan === "FREE") {
+        if (org && !getPlanCapabilities(org.plan).socialDrafts) {
           return reply.status(402).send({
             error: "paid_plan_required",
             code: "PAYWALL",
-            message: "Social launch drafts require a paid plan. Upgrade on the pricing page.",
+            message: "Social launch drafts require Pro plan or higher.",
           });
+        }
+        if (org && getPlanCapabilities(org.plan).brandKit && org.brandName) {
+          orgBrandName = org.brandName;
         }
       }
 
@@ -109,7 +129,7 @@ export async function projectRoutes(fastify: FastifyInstance) {
       const parsed = body.success ? body.data : {};
 
       const host = displayHost(project.url);
-      const brand = parsed.brand?.trim() || project.name || host;
+      const brand = parsed.brand?.trim() || orgBrandName || project.name || host;
       const handle = parsed.handle?.trim() || host.replace(/\./g, "");
 
       const run = project.runs[0];

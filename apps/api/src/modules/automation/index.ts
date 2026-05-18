@@ -6,7 +6,8 @@ export async function recordAllScenes(
   script: DemoScript,
   projectId: string,
   baseUrl: string,
-  outputDir: string
+  outputDir: string,
+  viewport?: { width: number; height: number }
 ): Promise<Record<string, string>> {
   const segmentMap: Record<string, string> = {}; // sceneId → videoPath
 
@@ -17,7 +18,8 @@ export async function recordAllScenes(
       projectId,
       baseUrl,
       scene.actions,
-      outputDir
+      outputDir,
+      viewport
     );
     segmentMap[scene.id] = recording.videoPath;
     console.log(`[Automation] Scene ${scene.id} recorded: ${recording.durationMs}ms`);

@@ -6,6 +6,7 @@ import { projectRoutes } from "./routes/projects";
 import { jobRoutes } from "./routes/jobs";
 import { videoRoutes } from "./routes/video";
 import { billingRoutes } from "./routes/billing";
+import { orgSettingsRoutes } from "./routes/org-settings";
 import { startWorkers } from "./modules/orchestrator";
 
 declare module "fastify" {
@@ -44,6 +45,7 @@ const start = async () => {
   try {
     await registerOrgContext(server);
     await server.register(billingRoutes);
+    await server.register(orgSettingsRoutes);
     await server.register(projectRoutes);
     await server.register(jobRoutes);
     await server.register(videoRoutes);

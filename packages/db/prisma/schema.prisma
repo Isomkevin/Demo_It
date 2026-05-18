@@ -12,7 +12,8 @@ enum PlanTier {
   STARTER
   PRO
   TEAM
-  AGENCY
+  ENTERPRISE
+  AGENCY // legacy — migrated to ENTERPRISE in app layer
 }
 
 model Organization {
@@ -24,6 +25,10 @@ model Organization {
   subscriptionId     String?
   subscriptionStatus String?
   periodEnd          DateTime?
+  voiceId            String?
+  brandName          String?
+  brandColor         String?
+  brandLogoUrl       String?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   projects           Project[]

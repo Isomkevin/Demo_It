@@ -1,23 +1,36 @@
 import type { PlanTier } from "@demo-copilot/types";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../prisma";
-import { PLAN_CONFIG } from "./plans";
+import { getPlanCapabilities, normalizePlanTier, planHasUnlimitedDemos } from "./plan-features";
+
+const defaultOrgData = {
+  plan: "FREE" as const,
+  creditsBalance: 1,
+  seatLimit: 1,
+};
 
 export async function getOrCreateOrg(orgId: string) {
   const existing = await prisma.organization.findUnique({ where: { id: orgId } });
   if (existing) return existing;
 
-  return prisma.organization.create({
-    data: {
-      id: orgId,
-      plan: "FREE",
-      creditsBalance: 1,
-      seatLimit: 1,
-    },
-  });
+  try {
+    return await prisma.organization.create({
+      data: { id: orgId, ...defaultOrgData },
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return prisma.organization.findUniqueOrThrow({ where: { id: orgId } });
+    }
+    throw error;
+  }
 }
 
 export async function hasCredits(orgId: string): Promise<boolean> {
   const org = await getOrCreateOrg(orgId);
+  if (planHasUnlimitedDemos(org.plan)) return true;
   return org.creditsBalance > 0;
 }
 
@@ -56,6 +69,8 @@ export async function setPlan(
     stripeEventId?: string;
   }
 ): Promise<void> {
+  const prismaPlan = plan === "ENTERPRISE" ? "ENTERPRISE" : plan;
+
   await prisma.$transaction(async (tx) => {
     if (opts.stripeEventId && opts.grantCredits) {
       const dup = await tx.creditLedger.findUnique({
@@ -65,14 +80,14 @@ export async function setPlan(
     }
 
     const updateData: {
-      plan: PlanTier;
+      plan: PlanTier | "AGENCY";
       subscriptionId?: string | null;
       subscriptionStatus?: string | null;
       periodEnd?: Date | null;
       seatLimit?: number;
       creditsBalance?: { increment: number };
     } = {
-      plan,
+      plan: prismaPlan as PlanTier,
       subscriptionId: opts.subscriptionId ?? undefined,
       subscriptionStatus: opts.subscriptionStatus ?? undefined,
       periodEnd: opts.periodEnd ?? undefined,
@@ -139,18 +154,24 @@ export async function consumeCreditForProject(projectId: string): Promise<boolea
     if (!fresh?.orgId || fresh.billedAt) return false;
 
     const org = await tx.organization.findUnique({ where: { id: fresh.orgId } });
-    if (!org || org.creditsBalance < 1) return false;
+    if (!org) return false;
 
-    await tx.organization.update({
-      where: { id: fresh.orgId },
-      data: { creditsBalance: { decrement: 1 } },
-    });
+    const unlimited = planHasUnlimitedDemos(org.plan);
+
+    if (!unlimited && org.creditsBalance < 1) return false;
+
+    if (!unlimited) {
+      await tx.organization.update({
+        where: { id: fresh.orgId },
+        data: { creditsBalance: { decrement: 1 } },
+      });
+    }
 
     await tx.creditLedger.create({
       data: {
         orgId: fresh.orgId,
-        delta: -1,
-        reason: "demo_complete",
+        delta: unlimited ? 0 : -1,
+        reason: unlimited ? "demo_complete_unlimited" : "demo_complete",
         projectId,
       },
     });
@@ -166,20 +187,35 @@ export async function consumeCreditForProject(projectId: string): Promise<boolea
   return consumed;
 }
 
-export function monthlyCreditsForPlan(plan: PlanTier): number {
-  if (plan === "FREE") return 0;
-  return PLAN_CONFIG[plan].monthlyCredits;
-}
-
 export async function getBillingStatus(orgId: string) {
   const org = await getOrCreateOrg(orgId);
+  const plan = normalizePlanTier(org.plan);
+  const caps = getPlanCapabilities(plan);
+
   return {
     orgId: org.id,
-    plan: org.plan as PlanTier,
+    plan,
+    planDisplayName: caps.displayName,
     creditsBalance: org.creditsBalance,
     seatLimit: org.seatLimit,
     subscriptionStatus: org.subscriptionStatus,
     periodEnd: org.periodEnd?.toISOString() ?? null,
-    hasPaidPlan: org.plan !== "FREE",
+    hasPaidPlan: plan !== "FREE",
+    unlimitedDemos: caps.unlimitedDemos,
+    capabilities: {
+      unlimitedDemos: caps.unlimitedDemos,
+      hdExport: caps.hdExport,
+      customVoice: caps.customVoice,
+      socialDrafts: caps.socialDrafts,
+      collaboration: caps.collaboration,
+      analytics: caps.analytics,
+      brandKit: caps.brandKit,
+      enterpriseFeatures: caps.enterpriseFeatures,
+      marketingBullets: caps.marketingBullets,
+    },
+    voiceId: org.voiceId,
+    brandName: org.brandName,
+    brandColor: org.brandColor,
+    brandLogoUrl: org.brandLogoUrl,
   };
 }

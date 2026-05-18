@@ -7,9 +7,9 @@ import {
   getBillingStatus,
   getOrCreateOrg,
   grantCredits,
-  monthlyCreditsForPlan,
   setPlan,
 } from "../lib/billing/credits";
+import { monthlyCreditsForPlan } from "../lib/billing/plans";
 import {
   clampTeamQuantity,
   creditsForProduct,
@@ -35,6 +35,7 @@ const CheckoutBody = z.object({
     "starter",
     "pro",
     "team",
+    "enterprise",
     "agency",
   ]),
   quantity: z.number().int().min(1).max(10).optional(),
@@ -68,7 +69,10 @@ async function resolvePlanFromSubscription(
     { env: process.env.STRIPE_PRICE_STARTER, tier: "STARTER" },
     { env: process.env.STRIPE_PRICE_PRO, tier: "PRO" },
     { env: process.env.STRIPE_PRICE_TEAM, tier: "TEAM" },
-    { env: process.env.STRIPE_PRICE_AGENCY, tier: "AGENCY" },
+    {
+      env: process.env.STRIPE_PRICE_ENTERPRISE ?? process.env.STRIPE_PRICE_AGENCY,
+      tier: "ENTERPRISE",
+    },
   ];
 
   for (const { env, tier } of priceIds) {
@@ -213,8 +217,7 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
           subscriptionStatus: sub.status,
           periodEnd: subscriptionPeriodEnd(sub),
           seatLimit: tier === "TEAM" ? quantity : 1,
-          grantCredits: grant,
-          stripeEventId: event.id,
+          ...(grant > 0 ? { grantCredits: grant, stripeEventId: event.id } : {}),
         });
       }
       break;
@@ -271,8 +274,7 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
         subscriptionStatus: sub.status,
         periodEnd: subscriptionPeriodEnd(sub),
         seatLimit: tier === "TEAM" ? (sub.items.data[0]?.quantity ?? 1) : 1,
-        grantCredits: grant,
-        stripeEventId: event.id,
+        ...(grant > 0 ? { grantCredits: grant, stripeEventId: event.id } : {}),
       });
       break;
     }

@@ -1,11 +1,12 @@
 import path from "path";
-import { generateNarration, getWordTimings } from "../../lib/elevenlabs";
+import { DEFAULT_VOICE_ID, generateNarration, getWordTimings } from "../../lib/elevenlabs";
 import type { DemoScript, VoiceOutput } from "@demo-copilot/types";
 
 export async function generateAllNarrations(
   script: DemoScript,
   projectId: string,
-  outputDir: string
+  outputDir: string,
+  voiceId: string = DEFAULT_VOICE_ID
 ): Promise<VoiceOutput[]> {
   const audioDir = path.join(outputDir, projectId, "audio");
   const outputs: VoiceOutput[] = [];
@@ -16,7 +17,8 @@ export async function generateAllNarrations(
 
     const { audioPath: savedPath, durationMs } = await generateNarration(
       scene.narration,
-      audioPath
+      audioPath,
+      voiceId
     );
 
     const wordTimings = await getWordTimings(scene.narration, durationMs);

@@ -170,7 +170,7 @@ export type DemoRun = {
 
 // ─── Billing ─────────────────────────────────────────────────────────────────
 
-export type PlanTier = "FREE" | "STARTER" | "PRO" | "TEAM" | "AGENCY";
+export type PlanTier = "FREE" | "STARTER" | "PRO" | "TEAM" | "ENTERPRISE";
 
 export type BillingProduct =
   | "video_single"
@@ -178,14 +178,47 @@ export type BillingProduct =
   | "starter"
   | "pro"
   | "team"
+  | "enterprise"
   | "agency";
+
+export type PlanCapabilitiesSummary = {
+  unlimitedDemos: boolean;
+  hdExport: boolean;
+  customVoice: boolean;
+  socialDrafts: boolean;
+  collaboration: boolean;
+  analytics: boolean;
+  brandKit: boolean;
+  enterpriseFeatures: boolean;
+  marketingBullets: string[];
+};
 
 export type BillingStatus = {
   orgId: string;
   plan: PlanTier;
+  planDisplayName: string;
   creditsBalance: number;
   seatLimit: number;
   subscriptionStatus: string | null;
   periodEnd: string | null;
   hasPaidPlan: boolean;
+  unlimitedDemos: boolean;
+  capabilities: PlanCapabilitiesSummary;
+  voiceId: string | null;
+  brandName: string | null;
+  brandColor: string | null;
+  brandLogoUrl: string | null;
+};
+
+export type VoiceOption = {
+  voiceId: string;
+  name: string;
+  previewUrl?: string;
+};
+
+export type OrgAnalytics = {
+  demosCompleted: number;
+  demosThisMonth: number;
+  creditsUsedThisMonth: number;
+  seatLimit: number;
 };

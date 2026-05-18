@@ -1,4 +1,10 @@
-import type { BillingProduct, BillingStatus, Project } from "@demo-copilot/types";
+import type {
+  BillingProduct,
+  BillingStatus,
+  OrgAnalytics,
+  Project,
+  VoiceOption,
+} from "@demo-copilot/types";
 import type { PlatformDrafts } from "@/lib/platform-drafts";
 import { getOrCreateOrgId } from "@/lib/org-id";
 
@@ -74,4 +80,32 @@ export const api = {
     }),
   openBillingPortal: () =>
     apiFetch<{ url: string }>("/api/v1/billing/portal", { method: "POST", body: "{}" }),
+  listVoices: () =>
+    apiFetch<{ voices: VoiceOption[]; selectedVoiceId: string }>("/api/v1/org/voices"),
+  setOrgVoice: (voiceId: string) =>
+    apiFetch<{ voiceId: string }>("/api/v1/org/voice", {
+      method: "PATCH",
+      body: JSON.stringify({ voiceId }),
+    }),
+  getOrgBrand: () =>
+    apiFetch<{
+      brandName: string | null;
+      brandColor: string | null;
+      brandLogoUrl: string | null;
+      canEdit: boolean;
+    }>("/api/v1/org/brand"),
+  updateOrgBrand: (body: {
+    brandName?: string;
+    brandColor?: string;
+    brandLogoUrl?: string | null;
+  }) =>
+    apiFetch<{
+      brandName: string | null;
+      brandColor: string | null;
+      brandLogoUrl: string | null;
+    }>("/api/v1/org/brand", {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  getOrgAnalytics: () => apiFetch<OrgAnalytics>("/api/v1/org/analytics"),
 };
