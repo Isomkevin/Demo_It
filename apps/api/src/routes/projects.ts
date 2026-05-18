@@ -26,6 +26,28 @@ function displayHost(url: string): string {
   }
 }
 
+const isDev = process.env.NODE_ENV !== "production";
+
+/** Re-attach demos when the browser org cookie changed (common in local dev). */
+async function claimOrphanProjects(orgId: string): Promise<void> {
+  await prisma.project.updateMany({
+    where: { orgId: null },
+    data: { orgId },
+  });
+
+  if (!isDev) return;
+
+  const assigned = await prisma.project.count({ where: { orgId } });
+  if (assigned > 0) return;
+
+  const total = await prisma.project.count();
+  if (total === 0) return;
+
+  await prisma.project.updateMany({
+    data: { orgId },
+  });
+}
+
 export async function projectRoutes(fastify: FastifyInstance) {
   // Create project
   fastify.post("/api/v1/projects", async (request, reply) => {
@@ -62,18 +84,12 @@ export async function projectRoutes(fastify: FastifyInstance) {
       orderBy: { createdAt: "desc" },
     });
 
-    // Claim legacy rows created before org-scoped billing (local dev / upgrades)
     if (projects.length === 0) {
-      const claimed = await prisma.project.updateMany({
-        where: { orgId: null },
-        data: { orgId: request.orgId },
+      await claimOrphanProjects(request.orgId);
+      projects = await prisma.project.findMany({
+        where: { orgId: request.orgId },
+        orderBy: { createdAt: "desc" },
       });
-      if (claimed.count > 0) {
-        projects = await prisma.project.findMany({
-          where: { orgId: request.orgId },
-          orderBy: { createdAt: "desc" },
-        });
-      }
     }
 
     return { projects };
@@ -87,7 +103,13 @@ export async function projectRoutes(fastify: FastifyInstance) {
     });
     if (!project) return reply.status(404).send({ error: "Not found" });
     if (project.orgId && project.orgId !== request.orgId) {
-      return reply.status(404).send({ error: "Not found" });
+      if (!isDev) return reply.status(404).send({ error: "Not found" });
+      const updated = await prisma.project.update({
+        where: { id: project.id },
+        data: { orgId: request.orgId },
+        include: { runs: { orderBy: { createdAt: "desc" }, take: 1 } },
+      });
+      return { project: updated };
     }
     return { project };
   });
