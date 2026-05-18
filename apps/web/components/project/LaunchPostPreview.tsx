@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { api, type ApiProject } from "@/lib/api-client";
+import { api, ApiError, type ApiProject } from "@/lib/api-client";
+import Link from "next/link";
 import { DemoPostCard } from "@/components/landing/DemoPostCard";
 import { DraftSourceBadge } from "@/components/project/DraftSourceBadge";
 import { PlatformDraftEditor } from "@/components/project/PlatformDraftEditor";
@@ -92,7 +93,11 @@ export function LaunchPostPreview({ project }: Props) {
       markAiGenerated(project.id);
       syncDraftSource(project.id);
     } catch (err) {
-      setAiError(err instanceof Error ? err.message : "AI draft generation failed");
+      if (err instanceof ApiError && err.status === 402) {
+        setAiError("Social launch drafts require a paid plan.");
+      } else {
+        setAiError(err instanceof Error ? err.message : "AI draft generation failed");
+      }
     } finally {
       setAiLoading(false);
     }
@@ -188,7 +193,12 @@ export function LaunchPostPreview({ project }: Props) {
           </p>
           {aiError ? (
             <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
-              {aiError}
+              {aiError}{" "}
+              {aiError.includes("paid plan") ? (
+                <Link href="/pricing" className="font-semibold underline">
+                  Upgrade
+                </Link>
+              ) : null}
             </p>
           ) : null}
         </div>

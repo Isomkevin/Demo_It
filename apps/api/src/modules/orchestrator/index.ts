@@ -17,6 +17,7 @@ import {
 import type { DemoScript, DemoTone, PipelineStage } from "@demo-copilot/types";
 import path from "node:path";
 import { resolveOutputDir } from "../../lib/output-dir";
+import { consumeCreditForProject } from "../../lib/billing/credits";
 
 const OUTPUT_DIR = resolveOutputDir();
 const workerOpts = { connection: redis };
@@ -185,6 +186,8 @@ const renderWorker = new Worker<RenderJobData>(QUEUE_NAMES.RENDER, async (job) =
     where: { id: projectId },
     data: { status: "completed", videoUrl: mp4Path },
   });
+
+  await consumeCreditForProject(projectId);
 
   // Cleanup intermediate files
   try {

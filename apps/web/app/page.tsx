@@ -15,12 +15,15 @@ import { ToneSelector } from "@/components/landing/ToneSelector";
 import { HeroPreview } from "@/components/landing/HeroPreview";
 import { HowItWorks } from "@/components/landing/HowItWorks";
 import { BenchmarkSection } from "@/components/landing/BenchmarkSection";
+import { UpgradeModal } from "@/components/billing/UpgradeModal";
+import { ApiError } from "@/lib/api-client";
 
 export default function Home() {
   const [url, setUrl] = useState("");
   const [tone, setTone] = useState("marketing");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paywallOpen, setPaywallOpen] = useState(false);
   const router = useRouter();
   const apiHealthy = useApiHealth();
 
@@ -33,7 +36,12 @@ export default function Home() {
       notifyHistoryChanged();
       router.push(`/projects/${project.id}`);
     } catch (err) {
-      setError(formatApiError(err));
+      if (err instanceof ApiError && err.status === 402) {
+        setPaywallOpen(true);
+        setError(null);
+      } else {
+        setError(formatApiError(err));
+      }
       setLoading(false);
     }
   };
@@ -58,7 +66,7 @@ export default function Home() {
           >
             <p className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-muted shadow-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse-soft" />
-              ElevenHack #8 · Demo Copilot
+              ElevenHacks × Stripe · Demo Copilot
             </p>
 
             <h1 className="mt-6 text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
@@ -150,8 +158,10 @@ export default function Home() {
       <BenchmarkSection />
 
       <footer className="relative z-10 border-t border-border py-8 text-center text-xs text-muted">
-        Built for ElevenHack #8 · Demo Copilot · Not affiliated with Google Labs or Pomelli
+        Built for ElevenHacks · Stripe + ElevenLabs · Not affiliated with Google Labs or Pomelli
       </footer>
+
+      <UpgradeModal open={paywallOpen} onClose={() => setPaywallOpen(false)} />
     </DemoShell>
   );
 }

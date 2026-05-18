@@ -76,6 +76,21 @@ Required keys for the **full** pipeline (analyze → script → record → voice
 
 For **Docker + DB only**, the defaults in `.env.example` for `DATABASE_URL` and `REDIS_URL` match `docker-compose.yml`.
 
+**Stripe billing** (pay-per-video + subscriptions — required for ElevenHacks × Stripe):
+
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `WEB_URL`
+- Six Price IDs: `STRIPE_PRICE_VIDEO_SINGLE`, `STRIPE_PRICE_VIDEO_PACK_5`, `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_TEAM`, `STRIPE_PRICE_AGENCY`
+
+Create products in [Stripe Dashboard](https://dashboard.stripe.com/test/products) (test mode). On each **subscription** price, add metadata `plan_tier` = `starter` | `pro` | `team` | `agency`.
+
+Local webhooks (install [Stripe CLI](https://stripe.com/docs/stripe-cli)):
+
+```bash
+stripe listen --forward-to localhost:3001/api/v1/billing/webhook
+```
+
+Copy the printed `whsec_...` into `STRIPE_WEBHOOK_SECRET` in `.env`, then restart the API.
+
 ### 3. Start Infrastructure
 
 Start the database and Redis instances:
@@ -113,6 +128,7 @@ pnpm dev
 
 - API: open http://localhost:3001/health — expect `{"status":"ok",...}`  
 - UI: open http://localhost:3000 — submit a URL to enqueue a run (needs valid AI + voice keys for the full job to finish).
+- Billing: http://localhost:3000/pricing — test Checkout with card `4242 4242 4242 4242`. New browsers get **1 free demo credit**.
 
 ### Troubleshooting
 
@@ -124,6 +140,8 @@ pnpm dev
 | Jobs stuck / workers errors | Redis `Up`; same `REDIS_URL` in `.env`. |
 | Playwright fails | Run `pnpm --filter=api exec playwright install chromium`. |
 | Windows + `OUTPUT_DIR=/tmp/...` | Prefer a Windows path in `.env` (e.g. under the repo `tmp/` folder) or ensure that folder exists. |
+| Checkout works but credits not added | Run `stripe listen --forward-to localhost:3001/api/v1/billing/webhook` and set `STRIPE_WEBHOOK_SECRET`. |
+| `402 PAYWALL` on generate | Buy credits at `/pricing` or use your free credit (1 per browser org). |
 
 ### Typecheck
 
@@ -132,9 +150,9 @@ pnpm typecheck
 ```
 
 ## Architecture
-- `apps/web`: Next.js 14 frontend control panel.
-- `apps/api`: Fastify backend orchestration with BullMQ.
-- `packages/db`: Shared Prisma database schemas.
-- `packages/types`: Shared TypeScript definitions.
+- `apps/web`: Next.js 14 frontend control panel (pricing, Stripe Checkout, credits badge).
+- `apps/api`: Fastify backend orchestration with BullMQ + Stripe billing webhooks.
+- `packages/db`: Shared Prisma database schemas (`Organization`, `CreditLedger`, `Project`).
+- `packages/types`: Shared TypeScript definitions (including billing types).
 
-*Built for ElevenHack #8*
+*Built for ElevenHacks — Stripe + ElevenLabs*

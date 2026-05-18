@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { OrgInitializer } from "@/components/billing/OrgInitializer";
 
 export const metadata: Metadata = {
   title: "Demo It — Cinematic product demos from any URL",
@@ -17,7 +18,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-background font-sans text-foreground antialiased">{children}</body>
+      <body className="min-h-screen bg-background font-sans text-foreground antialiased">
+        <OrgInitializer />
+        {children}
+      </body>
     </html>
   );
 }

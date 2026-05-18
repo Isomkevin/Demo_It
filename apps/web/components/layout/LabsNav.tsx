@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { HistoryDropdown } from "@/components/history/HistoryDropdown";
+import { CreditsBadge } from "@/components/billing/CreditsBadge";
 
 const links = [
+  { href: "/pricing", label: "Pricing", isRoute: true },
   { href: "#how-it-works", label: "How it works" },
   { href: "#benchmark", label: "Benchmark" },
 ];
@@ -35,18 +37,29 @@ export function LabsNav() {
         </Link>
 
         <nav className="hidden items-center gap-6 sm:flex" aria-label="Primary">
-          {links.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="text-sm text-muted transition hover:text-foreground"
-            >
-              {link.label}
-            </a>
-          ))}
+          {links.map((link) =>
+            "isRoute" in link && link.isRoute ? (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-sm text-muted transition hover:text-foreground"
+              >
+                {link.label}
+              </Link>
+            ) : (
+              <a
+                key={link.href}
+                href={link.href}
+                className="text-sm text-muted transition hover:text-foreground"
+              >
+                {link.label}
+              </a>
+            )
+          )}
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <CreditsBadge />
           <HistoryDropdown />
           <a
             href="#create"
@@ -87,13 +100,23 @@ export function LabsNav() {
             <ul className="flex flex-col gap-1 px-5 py-3">
               {links.map((link) => (
                 <li key={link.href}>
-                  <a
-                    href={link.href}
-                    onClick={() => setMenuOpen(false)}
-                    className="block rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-surface-muted"
-                  >
-                    {link.label}
-                  </a>
+                  {"isRoute" in link && link.isRoute ? (
+                    <Link
+                      href={link.href}
+                      onClick={() => setMenuOpen(false)}
+                      className="block rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-surface-muted"
+                    >
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <a
+                      href={link.href}
+                      onClick={() => setMenuOpen(false)}
+                      className="block rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-surface-muted"
+                    >
+                      {link.label}
+                    </a>
+                  )}
                 </li>
               ))}
               <li>

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { DemoScript } from "@demo-copilot/types";
 import { prisma } from "../lib/prisma";
+import { hasCredits } from "../lib/billing/credits";
 import { enqueuePipeline } from "../modules/orchestrator/queue";
 import { generateSocialDrafts } from "../modules/social";
 
@@ -28,6 +29,15 @@ export async function projectRoutes(fastify: FastifyInstance) {
   // Create project
   fastify.post("/api/v1/projects", async (request, reply) => {
     const body = CreateProjectBody.parse(request.body);
+    const orgId = request.orgId;
+
+    if (!(await hasCredits(orgId))) {
+      return reply.status(402).send({
+        error: "insufficient_credits",
+        code: "PAYWALL",
+        message: "You need credits to generate a demo. Upgrade or buy a video credit.",
+      });
+    }
 
     const project = await prisma.project.create({
       data: {
@@ -35,6 +45,7 @@ export async function projectRoutes(fastify: FastifyInstance) {
         name: body.name || new URL(body.url).hostname,
         tone: body.tone || "marketing",
         status: "queued",
+        orgId,
       },
     });
 
@@ -44,8 +55,9 @@ export async function projectRoutes(fastify: FastifyInstance) {
   });
 
   // List projects
-  fastify.get("/api/v1/projects", async () => {
+  fastify.get("/api/v1/projects", async (request) => {
     const projects = await prisma.project.findMany({
+      where: { orgId: request.orgId },
       orderBy: { createdAt: "desc" },
     });
     return { projects };
@@ -58,6 +70,9 @@ export async function projectRoutes(fastify: FastifyInstance) {
       include: { runs: { orderBy: { createdAt: "desc" }, take: 1 } },
     });
     if (!project) return reply.status(404).send({ error: "Not found" });
+    if (project.orgId && project.orgId !== request.orgId) {
+      return reply.status(404).send({ error: "Not found" });
+    }
     return { project };
   });
 
@@ -75,6 +90,19 @@ export async function projectRoutes(fastify: FastifyInstance) {
         return reply.status(400).send({
           error: "Project must be completed before generating social drafts",
         });
+      }
+
+      if (project.orgId) {
+        const org = await prisma.organization.findUnique({
+          where: { id: project.orgId },
+        });
+        if (org?.plan === "FREE") {
+          return reply.status(402).send({
+            error: "paid_plan_required",
+            code: "PAYWALL",
+            message: "Social launch drafts require a paid plan. Upgrade on the pricing page.",
+          });
+        }
       }
 
       const body = SocialDraftsBody.safeParse(request.body ?? {});

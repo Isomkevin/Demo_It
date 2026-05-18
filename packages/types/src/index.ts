@@ -167,3 +167,25 @@ export type DemoRun = {
   durationMs?: number;
   createdAt: Date;
 };
+
+// ─── Billing ─────────────────────────────────────────────────────────────────
+
+export type PlanTier = "FREE" | "STARTER" | "PRO" | "TEAM" | "AGENCY";
+
+export type BillingProduct =
+  | "video_single"
+  | "video_pack_5"
+  | "starter"
+  | "pro"
+  | "team"
+  | "agency";
+
+export type BillingStatus = {
+  orgId: string;
+  plan: PlanTier;
+  creditsBalance: number;
+  seatLimit: number;
+  subscriptionStatus: string | null;
+  periodEnd: string | null;
+  hasPaidPlan: boolean;
+};

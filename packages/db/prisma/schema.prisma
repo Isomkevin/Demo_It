@@ -7,17 +7,58 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PlanTier {
+  FREE
+  STARTER
+  PRO
+  TEAM
+  AGENCY
+}
+
+model Organization {
+  id                 String         @id @default(cuid())
+  stripeCustomerId   String?        @unique
+  plan               PlanTier       @default(FREE)
+  creditsBalance     Int            @default(1)
+  seatLimit          Int            @default(1)
+  subscriptionId     String?
+  subscriptionStatus String?
+  periodEnd          DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  projects           Project[]
+  ledger             CreditLedger[]
+}
+
+model CreditLedger {
+  id            String       @id @default(cuid())
+  orgId         String
+  delta         Int
+  reason        String
+  projectId     String?
+  stripeEventId String?      @unique
+  createdAt     DateTime     @default(now())
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+}
+
 model Project {
-  id        String   @id @default(cuid())
-  url       String
-  name      String   @default("")
-  tone      String   @default("marketing")
-  status        String   @default("queued")
-  errorMessage  String?
-  videoUrl      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  runs      DemoRun[]
+  id           String        @id @default(cuid())
+  url          String
+  name         String        @default("")
+  tone         String        @default("marketing")
+  status       String        @default("queued")
+  errorMessage String?
+  videoUrl     String?
+  orgId        String?
+  billedAt     DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  runs         DemoRun[]
+  org          Organization? @relation(fields: [orgId], references: [id])
+
+  @@index([orgId])
 }
 
 model DemoRun {

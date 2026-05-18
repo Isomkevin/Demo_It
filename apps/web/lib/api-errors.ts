@@ -1,4 +1,13 @@
+import { ApiError } from "@/lib/api-client";
+
 export function formatApiError(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 402) {
+      return err.message || "You need credits or a paid plan to continue.";
+    }
+    return err.message;
+  }
+
   const raw = err instanceof Error ? err.message : "Something went wrong";
   const lower = raw.toLowerCase();
 
