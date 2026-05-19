@@ -79,9 +79,27 @@ For **Docker + DB only**, the defaults in `.env.example` for `DATABASE_URL` and 
 **Stripe billing** (pay-per-video + subscriptions — required for ElevenHacks × Stripe):
 
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `WEB_URL`
-- Six Price IDs: `STRIPE_PRICE_VIDEO_SINGLE`, `STRIPE_PRICE_VIDEO_PACK_5`, `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_TEAM`, `STRIPE_PRICE_AGENCY`
+- Six Price IDs: `STRIPE_PRICE_VIDEO_SINGLE`, `STRIPE_PRICE_VIDEO_PACK_5`, `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_TEAM`, `STRIPE_PRICE_AGENCY/STRIPE_PRICE_ENTERPRISE`
 
 Create products in [Stripe Dashboard](https://dashboard.stripe.com/test/products) (test mode). On each **subscription** price, add metadata `plan_tier` = `starter` | `pro` | `team` | `agency`.
+
+Create products/prices in your Stripe account and write Price IDs to `.env`:
+
+```bash
+pnpm --filter=api stripe:setup -- --write
+```
+
+If prices already exist in Stripe but `.env` has wrong or stale `price_…` IDs, sync from your account:
+
+```bash
+pnpm --filter=api stripe:sync -- --write
+```
+
+Validate Stripe env (secret key + every `STRIPE_PRICE_*`):
+
+```bash
+pnpm --filter=api stripe:check
+```
 
 Local webhooks (install [Stripe CLI](https://stripe.com/docs/stripe-cli)):
 
@@ -90,6 +108,8 @@ stripe listen --forward-to localhost:3001/api/v1/billing/webhook
 ```
 
 Copy the printed `whsec_...` into `STRIPE_WEBHOOK_SECRET` in `.env`, then restart the API.
+
+**Cursor + Stripe MCP** (optional): do not commit API keys. Copy `.cursor/mcp.json.example` to `.cursor/mcp.json` and paste `STRIPE_SECRET_KEY` from `.env`, or run `.\scripts\run-stripe-mcp.ps1` (stdio MCP via `npx @stripe/mcp`).
 
 ### 3. Start Infrastructure
 

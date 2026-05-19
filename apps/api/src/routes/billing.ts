@@ -90,9 +90,17 @@ export async function billingRoutes(fastify: FastifyInstance) {
   fastify.post("/api/v1/billing/checkout", async (request, reply) => {
     const body = CheckoutBody.parse(request.body);
     const orgId = request.orgId;
+
+    let priceId: string;
+    try {
+      priceId = getPriceId(body.product);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Billing not configured";
+      return reply.status(503).send({ error: message, code: "STRIPE_PRICE_MISSING" });
+    }
+
     const stripe = getStripe();
     const customerId = await ensureStripeCustomer(orgId);
-    const priceId = getPriceId(body.product);
     const webUrl = getWebUrl();
 
     let quantity = body.quantity ?? defaultQuantityForProduct(body.product);
@@ -101,7 +109,9 @@ export async function billingRoutes(fastify: FastifyInstance) {
     }
 
     const tier = productToPlanTier(body.product);
-    const session = await stripe.checkout.sessions.create(
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create(
       isSubscriptionProduct(body.product) && tier
         ? {
             mode: "subscription",
@@ -124,7 +134,18 @@ export async function billingRoutes(fastify: FastifyInstance) {
             metadata: { orgId, product: body.product },
             line_items: [{ price: priceId, quantity: 1 }],
           }
-    );
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Stripe checkout failed";
+      request.log.warn({ err, product: body.product, priceId }, "checkout session failed");
+      if (message.includes("No such price")) {
+        return reply.status(503).send({
+          error: `Stripe price not found (${priceId}). Run: pnpm --filter=api stripe:setup`,
+          code: "STRIPE_PRICE_INVALID",
+        });
+      }
+      return reply.status(502).send({ error: message, code: "STRIPE_CHECKOUT_FAILED" });
+    }
     if (!session.url) {
       return reply.status(500).send({ error: "Failed to create checkout session" });
     }
@@ -156,7 +177,7 @@ export async function billingRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const stripe = getStripe();
       const sig = request.headers["stripe-signature"];
-      const secret = process.env.STRIPE_WEBHOOK_SECRET;
+      const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
 
       if (!secret || typeof sig !== "string") {
         return reply.status(400).send({ error: "Webhook not configured" });

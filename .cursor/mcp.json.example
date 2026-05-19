@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "stripe": {
+      "url": "https://mcp.stripe.com",
+      "headers": {
+        "Authorization": "Bearer sk_test_YOUR_KEY_FROM_ENV"
+      }
+    }
+  }
+}

@@ -23,19 +23,40 @@ export const ONE_TIME_CREDITS: Record<"video_single" | "video_pack_5", number> =
 
 export type CheckoutProduct = BillingProduct;
 
+function stripeEnv(name: string): string | undefined {
+  const raw = process.env[name];
+  const value = raw?.trim();
+  if (!value || value === "price_..." || value.startsWith("price_...")) {
+    return undefined;
+  }
+  return value;
+}
+
 export function getPriceId(product: CheckoutProduct): string {
   const envMap: Record<CheckoutProduct, string | undefined> = {
-    video_single: process.env.STRIPE_PRICE_VIDEO_SINGLE,
-    video_pack_5: process.env.STRIPE_PRICE_VIDEO_PACK_5,
-    starter: process.env.STRIPE_PRICE_STARTER,
-    pro: process.env.STRIPE_PRICE_PRO,
-    team: process.env.STRIPE_PRICE_TEAM,
-    enterprise: process.env.STRIPE_PRICE_ENTERPRISE ?? process.env.STRIPE_PRICE_AGENCY,
-    agency: process.env.STRIPE_PRICE_ENTERPRISE ?? process.env.STRIPE_PRICE_AGENCY,
+    video_single: stripeEnv("STRIPE_PRICE_VIDEO_SINGLE"),
+    video_pack_5: stripeEnv("STRIPE_PRICE_VIDEO_PACK_5"),
+    starter: stripeEnv("STRIPE_PRICE_STARTER"),
+    pro: stripeEnv("STRIPE_PRICE_PRO"),
+    team: stripeEnv("STRIPE_PRICE_TEAM"),
+    enterprise:
+      stripeEnv("STRIPE_PRICE_ENTERPRISE") ?? stripeEnv("STRIPE_PRICE_AGENCY"),
+    agency: stripeEnv("STRIPE_PRICE_ENTERPRISE") ?? stripeEnv("STRIPE_PRICE_AGENCY"),
+  };
+  const envKey: Record<CheckoutProduct, string> = {
+    video_single: "STRIPE_PRICE_VIDEO_SINGLE",
+    video_pack_5: "STRIPE_PRICE_VIDEO_PACK_5",
+    starter: "STRIPE_PRICE_STARTER",
+    pro: "STRIPE_PRICE_PRO",
+    team: "STRIPE_PRICE_TEAM",
+    enterprise: "STRIPE_PRICE_ENTERPRISE",
+    agency: "STRIPE_PRICE_AGENCY",
   };
   const priceId = envMap[product];
   if (!priceId) {
-    throw new Error(`Missing Stripe price env for product: ${product}`);
+    throw new Error(
+      `Missing Stripe price: set ${envKey[product]} in .env (run: pnpm --filter=api stripe:setup)`
+    );
   }
   return priceId;
 }

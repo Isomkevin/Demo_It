@@ -3,16 +3,10 @@ import path from "node:path";
 import { config } from "dotenv";
 
 /**
- * Load `.env` from `apps/api` or monorepo root so `pnpm dev` picks up DATABASE_URL, keys, etc.
+ * Load monorepo root `.env` first, then `apps/api/.env` overrides (when cwd is apps/api).
  */
-const candidates = [
-  path.resolve(process.cwd(), ".env"),
-  path.resolve(process.cwd(), "..", "..", ".env"),
-];
+const rootEnv = path.resolve(process.cwd(), "..", "..", ".env");
+const localEnv = path.resolve(process.cwd(), ".env");
 
-for (const envPath of candidates) {
-  if (existsSync(envPath)) {
-    config({ path: envPath });
-    break;
-  }
-}
+if (existsSync(rootEnv)) config({ path: rootEnv });
+if (existsSync(localEnv) && localEnv !== rootEnv) config({ path: localEnv, override: true });
