@@ -5,34 +5,34 @@ import { scrapeSite } from "./site-crawler";
 import { mergeCrawledPages, buildAnalyzerPromptFromSite } from "./merge-product-map";
 import type { ProductMap } from "@demo-copilot/types";
 
+const FlowStepSchema = z.object({
+  pageUrl: z.string(),
+  action: z.object({
+    trigger: z.string(),
+    action: z.enum(["click", "type", "scroll", "hover"]),
+    label: z.string(),
+  }),
+  description: z.string(),
+});
+
+const FlowSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  steps: z.array(FlowStepSchema).default([]),
+  valueScore: z.number().min(0).max(1),
+});
+
 const ProductMapSchema = z.object({
   pages: z.array(
     z.object({
       url: z.string(),
       title: z.string(),
-      components: z.array(z.any()),
+      components: z.array(z.any()).default([]),
       sections: z.array(z.any()).optional(),
     })
   ),
-  flows: z.array(
-    z.object({
-      id: z.string(),
-      name: z.string(),
-      steps: z.array(
-        z.object({
-          pageUrl: z.string(),
-          action: z.object({
-            trigger: z.string(),
-            action: z.enum(["click", "type", "scroll", "hover"]),
-            label: z.string(),
-          }),
-          description: z.string(),
-        })
-      ),
-      valueScore: z.number().min(0).max(1),
-    })
-  ),
-  primaryValuePaths: z.array(z.any()),
+  flows: z.array(FlowSchema).default([]),
+  primaryValuePaths: z.array(FlowSchema).default([]),
   appType: z.enum(["dashboard", "saas", "tool", "marketplace", "other"]),
 });
 

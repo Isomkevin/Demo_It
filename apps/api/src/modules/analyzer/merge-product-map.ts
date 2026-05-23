@@ -24,7 +24,7 @@ export function mergeCrawledPages(productMap: ProductMap, site: SiteScrape): Pro
     sections: p.sections,
   }));
 
-  for (const llmPage of productMap.pages) {
+  for (const llmPage of productMap.pages ?? []) {
     const key = normalizeUrlKey(llmPage.url);
     if (!allowedUrls.has(key)) continue;
     const crawled = crawledByUrl.get(key)!;
@@ -43,19 +43,31 @@ export function mergeCrawledPages(productMap: ProductMap, site: SiteScrape): Pro
     return site.seedUrl;
   };
 
-  const sanitizeFlow = (flow: ProductMap["flows"][0]) => ({
-    ...flow,
-    steps: flow.steps.map((step) => ({
-      ...step,
-      pageUrl: sanitizePageUrl(step.pageUrl),
-    })),
-  });
+  const sanitizeFlow = (flow: ProductMap["flows"][0]): ProductMap["flows"][0] => {
+    const steps = Array.isArray(flow.steps) ? flow.steps : [];
+    return {
+      ...flow,
+      steps: steps.map((step) => ({
+        ...step,
+        pageUrl: sanitizePageUrl(step.pageUrl ?? site.seedUrl),
+      })),
+    };
+  };
+
+  const withSteps = (flows: ProductMap["flows"] | undefined) =>
+    (flows ?? []).map(sanitizeFlow).filter((f) => f.steps.length > 0);
+
+  const flows = withSteps(productMap.flows);
+  let primaryValuePaths = withSteps(productMap.primaryValuePaths);
+  if (primaryValuePaths.length === 0 && flows.length > 0) {
+    primaryValuePaths = [...flows].sort((a, b) => b.valueScore - a.valueScore).slice(0, 3);
+  }
 
   return {
     ...productMap,
     pages: mergedPages,
-    flows: productMap.flows.map(sanitizeFlow),
-    primaryValuePaths: productMap.primaryValuePaths.map(sanitizeFlow),
+    flows,
+    primaryValuePaths,
   };
 }
 
@@ -86,7 +98,7 @@ Return a JSON object matching this exact shape:
       "valueScore": number
     }
   ],
-  "primaryValuePaths": [/* top 2-3 flows spanning multiple pages when possible */],
+  "primaryValuePaths": [/* same shape as flows[] — must include steps[]; top 2-3 flows */],
   "appType": "dashboard"|"saas"|"tool"|"marketplace"|"other"
 }
 `.trim();
