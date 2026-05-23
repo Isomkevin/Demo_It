@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { callLLM } from "../../lib/llm";
-import { scrapePage } from "./dom-scraper";
-import { ANALYZER_SYSTEM_PROMPT, buildAnalyzerPrompt } from "../script/prompts";
+import { ANALYZER_SYSTEM_PROMPT } from "../script/prompts";
+import { scrapeSite } from "./site-crawler";
+import { mergeCrawledPages, buildAnalyzerPromptFromSite } from "./merge-product-map";
 import type { ProductMap } from "@demo-copilot/types";
 
 const ProductMapSchema = z.object({
@@ -10,6 +11,7 @@ const ProductMapSchema = z.object({
       url: z.string(),
       title: z.string(),
       components: z.array(z.any()),
+      sections: z.array(z.any()).optional(),
     })
   ),
   flows: z.array(
@@ -35,16 +37,18 @@ const ProductMapSchema = z.object({
 });
 
 export async function analyzeProduct(url: string): Promise<ProductMap> {
-  console.log(`[Analyzer] Scraping ${url}`);
-  const scrape = await scrapePage(url);
+  const maxPages = Number(process.env.CRAWL_MAX_PAGES) || 6;
+  console.log(`[Analyzer] Crawling ${url} (max ${maxPages} pages)`);
+  const site = await scrapeSite(url, { maxPages });
 
-  console.log(`[Analyzer] Sending to LLM for analysis`);
+  console.log(`[Analyzer] Sending ${site.pages.length} page(s) to LLM`);
   const productMap = await callLLM(
     ANALYZER_SYSTEM_PROMPT,
-    buildAnalyzerPrompt(url, scrape.title, scrape.html),
+    buildAnalyzerPromptFromSite(site),
     ProductMapSchema
   );
 
-  console.log(`[Analyzer] Found ${productMap.flows.length} flows`);
-  return productMap as ProductMap;
+  const merged = mergeCrawledPages(productMap as ProductMap, site);
+  console.log(`[Analyzer] ${merged.pages.length} pages, ${merged.flows.length} flows`);
+  return merged;
 }

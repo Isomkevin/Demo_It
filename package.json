@@ -7,7 +7,8 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
-    "db:push": "pnpm --filter=@demo-copilot/db db:push"
+    "db:push": "pnpm --filter=@demo-copilot/db db:push",
+    "infra:up": "powershell -ExecutionPolicy Bypass -File ./scripts/start-infra.ps1"
   },
   "devDependencies": {
     "turbo": "^2.9.12"

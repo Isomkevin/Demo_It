@@ -109,6 +109,8 @@ stripe listen --forward-to localhost:3001/api/v1/billing/webhook
 
 Copy the printed `whsec_...` into `STRIPE_WEBHOOK_SECRET` in `.env`, then restart the API.
 
+**Credits stay at 0 after paying?** Stripe Checkout can succeed before the API receives a webhook (typical in local dev without `stripe listen`). The app now calls `POST /api/v1/billing/confirm-checkout` from `/billing/success` using `session_id` in the URL, so credits apply even without webhooks. For production, still configure a Stripe Dashboard webhook endpoint pointing at `https://your-api/api/v1/billing/webhook` with event `checkout.session.completed`.
+
 **Cursor + Stripe MCP** (optional): do not commit API keys. Copy `.cursor/mcp.json.example` to `.cursor/mcp.json` and paste `STRIPE_SECRET_KEY` from `.env`, or run `.\scripts\run-stripe-mcp.ps1` (stdio MCP via `npx @stripe/mcp`).
 
 ### 3. Start Infrastructure

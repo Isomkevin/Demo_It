@@ -1,13 +1,20 @@
 // ─── Product Analysis ────────────────────────────────────────────────────────
 
+export type PageSection = {
+  id: string;
+  selector: string;
+  label: string;
+};
+
 export type Page = {
   url: string;
   title: string;
   components: Component[];
+  sections?: PageSection[];
 };
 
 export type Component = {
-  type: "button" | "form" | "nav" | "input" | "modal" | "card" | "table" | "other";
+  type: "button" | "form" | "nav" | "input" | "modal" | "card" | "table" | "link" | "other";
   selector: string;
   label: string;
   isInteractive: boolean;
@@ -70,8 +77,21 @@ export type BrowserAction =
   | { type: "type"; selector: string; text: string }
   | { type: "wait"; ms: number }
   | { type: "scroll"; direction: "up" | "down"; px?: number }
+  | { type: "scrollTo"; selector: string; block?: "start" | "center" }
   | { type: "hover"; selector: string }
   | { type: "screenshot"; label: string };
+
+/** Result of crawling a site (multiple pages). */
+export type SiteScrape = {
+  seedUrl: string;
+  pages: Array<{
+    url: string;
+    title: string;
+    components: Component[];
+    interactions: Interaction[];
+    sections: PageSection[];
+  }>;
+};
 
 // ─── Voice / Audio ───────────────────────────────────────────────────────────
 

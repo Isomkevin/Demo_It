@@ -73,6 +73,11 @@ export const api = {
       body: JSON.stringify(body ?? {}),
     }),
   getBillingStatus: () => apiFetch<BillingStatus>("/api/v1/billing/status"),
+  confirmCheckout: (sessionId: string) =>
+    apiFetch<BillingStatus>("/api/v1/billing/confirm-checkout", {
+      method: "POST",
+      body: JSON.stringify({ sessionId }),
+    }),
   createCheckout: (body: { product: BillingProduct; quantity?: number }) =>
     apiFetch<{ url: string }>("/api/v1/billing/checkout", {
       method: "POST",

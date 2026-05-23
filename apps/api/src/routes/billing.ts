@@ -1,18 +1,17 @@
 import type { FastifyInstance } from "fastify";
-import type { BillingProduct, PlanTier } from "@demo-copilot/types";
+import type { PlanTier } from "@demo-copilot/types";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import {
   downgradeToFree,
   getBillingStatus,
   getOrCreateOrg,
-  grantCredits,
   setPlan,
 } from "../lib/billing/credits";
 import { monthlyCreditsForPlan } from "../lib/billing/plans";
+import { fulfillCheckoutSession } from "../lib/billing/fulfill-checkout";
 import {
   clampTeamQuantity,
-  creditsForProduct,
   defaultQuantityForProduct,
   getPriceId,
   isSubscriptionProduct,
@@ -27,6 +26,10 @@ import {
   type StripeInvoice,
   type StripeSubscription,
 } from "../lib/billing/stripe";
+
+const ConfirmCheckoutBody = z.object({
+  sessionId: z.string().min(1),
+});
 
 const CheckoutBody = z.object({
   product: z.enum([
@@ -85,6 +88,41 @@ async function resolvePlanFromSubscription(
 export async function billingRoutes(fastify: FastifyInstance) {
   fastify.get("/api/v1/billing/status", async (request) => {
     return getBillingStatus(request.orgId);
+  });
+
+  /** Fulfill credits when Stripe Checkout succeeded but webhook did not run (common in local dev). */
+  fastify.post("/api/v1/billing/confirm-checkout", async (request, reply) => {
+    const { sessionId } = ConfirmCheckoutBody.parse(request.body);
+    const orgId = request.orgId;
+
+    const stripe = getStripe();
+    let session;
+    try {
+      session = await stripe.checkout.sessions.retrieve(sessionId);
+    } catch (err) {
+      request.log.warn({ err, sessionId }, "confirm-checkout retrieve failed");
+      return reply.status(400).send({ error: "Invalid checkout session", code: "SESSION_NOT_FOUND" });
+    }
+
+    const sessionOrgId = session.metadata?.orgId ?? session.client_reference_id;
+    if (!sessionOrgId || sessionOrgId !== orgId) {
+      return reply.status(403).send({
+        error: "This checkout session belongs to a different browser session. Use the same device/browser you paid with.",
+        code: "ORG_MISMATCH",
+      });
+    }
+
+    const result = await fulfillCheckoutSession(session);
+    if (!result.fulfilled) {
+      request.log.warn({ sessionId, orgId, reason: result.reason }, "confirm-checkout not fulfilled");
+      return reply.status(400).send({
+        error: `Could not apply purchase (${result.reason ?? "unknown"})`,
+        code: "FULFILL_FAILED",
+        reason: result.reason,
+      });
+    }
+
+    return getBillingStatus(orgId);
   });
 
   fastify.post("/api/v1/billing/checkout", async (request, reply) => {
@@ -214,32 +252,11 @@ async function handleStripeEvent(event: StripeEvent): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as StripeCheckoutSession;
-      const orgId = session.metadata?.orgId ?? session.client_reference_id;
-      if (!orgId) break;
-
-      const product = session.metadata?.product as BillingProduct | undefined;
-
-      if (session.mode === "payment" && product) {
-        const credits = creditsForProduct(product);
-        await grantCredits(orgId, credits, "purchase", event.id);
-        break;
-      }
-
-      if (session.mode === "subscription" && session.subscription) {
-        const sub = await stripe.subscriptions.retrieve(session.subscription as string);
-        const tier = await resolvePlanFromSubscription(sub);
-        if (!tier) break;
-
-        const quantity = sub.items.data[0]?.quantity ?? 1;
-        const grant = monthlyCreditsForPlan(tier);
-
-        await setPlan(orgId, tier, {
-          subscriptionId: sub.id,
-          subscriptionStatus: sub.status,
-          periodEnd: subscriptionPeriodEnd(sub),
-          seatLimit: tier === "TEAM" ? quantity : 1,
-          ...(grant > 0 ? { grantCredits: grant, stripeEventId: event.id } : {}),
-        });
+      const result = await fulfillCheckoutSession(session);
+      if (!result.fulfilled) {
+        console.warn(
+          `[Billing] checkout.session.completed not fulfilled: ${result.reason ?? "unknown"} session=${session.id}`
+        );
       }
       break;
     }

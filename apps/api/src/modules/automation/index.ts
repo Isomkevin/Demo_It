@@ -1,6 +1,12 @@
-import path from "path";
 import type { DemoScript, Scene } from "@demo-copilot/types";
-import { recordScene, type SceneRecording } from "./executor";
+import { recordScene } from "./executor";
+
+function resolveSceneStartUrl(scene: Scene, baseUrl: string): string {
+  const nav = scene.actions.find(
+    (a): a is Extract<typeof a, { type: "navigate" }> => a.type === "navigate"
+  );
+  return nav?.url ?? baseUrl;
+}
 
 export async function recordAllScenes(
   script: DemoScript,
@@ -9,17 +15,20 @@ export async function recordAllScenes(
   outputDir: string,
   viewport?: { width: number; height: number }
 ): Promise<Record<string, string>> {
-  const segmentMap: Record<string, string> = {}; // sceneId → videoPath
+  const segmentMap: Record<string, string> = {};
 
   for (const scene of script.scenes) {
-    console.log(`[Automation] Recording scene: ${scene.id} — "${scene.title}"`);
+    const startUrl = resolveSceneStartUrl(scene, baseUrl);
+    console.log(`[Automation] Recording scene: ${scene.id} — "${scene.title}" @ ${startUrl}`);
+
     const recording = await recordScene(
       scene.id,
       projectId,
-      baseUrl,
+      startUrl,
       scene.actions,
       outputDir,
-      viewport
+      viewport,
+      scene.visualFocus
     );
     segmentMap[scene.id] = recording.videoPath;
     console.log(`[Automation] Scene ${scene.id} recorded: ${recording.durationMs}ms`);

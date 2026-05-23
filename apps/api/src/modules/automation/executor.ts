@@ -2,6 +2,7 @@ import { chromium, type Locator, type Page } from "playwright";
 import path from "path";
 import fs from "fs/promises";
 import type { BrowserAction } from "@demo-copilot/types";
+import { installEvaluatePolyfill } from "../../lib/playwright-init";
 
 /** SPAs and live sites rarely reach `networkidle`; `domcontentloaded` is reliable with a hard cap. */
 const GOTO_OPTS = { waitUntil: "domcontentloaded" as const, timeout: 60_000 };
@@ -18,14 +19,12 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Pull label from Playwright `:has-text("…")` / `:has-text('…')` in the scripted selector. */
 function extractHasTextLabel(selector: string): string | null {
   const m = selector.match(/:has-text\s*\(\s*["']([^"']+)["']\s*\)/i);
   const t = m?.[1]?.trim();
   return t && t.length > 0 ? t : null;
 }
 
-/** Extra phrases to try when the scripted label does not match real UI copy. */
 function expandedSearchPhrases(label: string): string[] {
   const seen = new Set<string>();
   const add = (s: string) => {
@@ -135,13 +134,48 @@ async function dismissCommonOverlays(page: Page): Promise<void> {
   }
 }
 
-async function gentleScroll(page: Page, px = 400): Promise<void> {
-  await page.evaluate((amount) => window.scrollBy(0, amount), px).catch(() => {});
+async function scrollToSelectorSmooth(
+  page: Page,
+  selector: string,
+  block: "start" | "center" = "center"
+): Promise<void> {
+  const loc = page.locator(selector).first();
+  const count = await loc.count();
+  if (count === 0) {
+    console.warn(`[Automation] scrollTo: no match for ${selector}`);
+    return;
+  }
+
+  await loc.evaluate(
+    async (el, blockArg) => {
+      const rect = el.getBoundingClientRect();
+      const offset = blockArg === "center" ? window.innerHeight * 0.25 : 80;
+      const target = rect.top + window.scrollY - offset;
+      const start = window.scrollY;
+      const dist = target - start;
+      if (Math.abs(dist) < 8) return;
+      const steps = 10;
+      for (let i = 1; i <= steps; i++) {
+        window.scrollTo({ top: start + (dist * i) / steps, behavior: "instant" });
+        await new Promise((r) => setTimeout(r, 70));
+      }
+    },
+    block
+  );
+  await page.waitForTimeout(500);
 }
 
 async function scrollLocatorIntoView(page: Page, selector: string): Promise<void> {
   const loc = page.locator(selector).first();
   await loc.scrollIntoViewIfNeeded({ timeout: 8_000 }).catch(() => {});
+}
+
+async function recoverWithVisualFocus(page: Page, visualFocus?: string): Promise<void> {
+  if (!visualFocus?.trim()) {
+    await page.waitForTimeout(800);
+    return;
+  }
+  await scrollToSelectorSmooth(page, visualFocus, "center");
 }
 
 export type RecordViewport = { width: number; height: number };
@@ -152,7 +186,8 @@ export async function recordScene(
   url: string,
   actions: BrowserAction[],
   outputDir: string,
-  viewport: RecordViewport = { width: 1920, height: 1080 }
+  viewport: RecordViewport = { width: 1920, height: 1080 },
+  visualFocus?: string
 ): Promise<SceneRecording> {
   const segmentsDir = path.join(outputDir, projectId, "segments");
   await fs.mkdir(segmentsDir, { recursive: true });
@@ -165,15 +200,28 @@ export async function recordScene(
       size: viewport,
     },
   });
+  await installEvaluatePolyfill(context);
   const page = await context.newPage();
 
   const startTime = Date.now();
 
   try {
-    await page.goto(url, GOTO_OPTS);
-    await dismissCommonOverlays(page);
+    const first = actions[0];
+    if (first?.type === "navigate") {
+      await page.goto(first.url, GOTO_OPTS);
+      await dismissCommonOverlays(page);
+    } else {
+      await page.goto(url, GOTO_OPTS);
+      await dismissCommonOverlays(page);
+    }
+
+    let skippedInitialNavigate = first?.type === "navigate";
 
     for (const action of actions) {
+      if (skippedInitialNavigate && action.type === "navigate") {
+        skippedInitialNavigate = false;
+        continue;
+      }
       try {
         switch (action.type) {
           case "navigate":
@@ -184,7 +232,7 @@ export async function recordScene(
             const ok = await resilientPointerAction(page, action.selector, "click", INTERACT_TIMEOUT);
             if (!ok) {
               console.warn(`[Automation] [${sceneId}] click missed: ${action.selector}`);
-              await gentleScroll(page);
+              await recoverWithVisualFocus(page, visualFocus);
             }
             break;
           }
@@ -195,7 +243,7 @@ export async function recordScene(
               await input.fill(action.text, { timeout: INTERACT_TIMEOUT });
             } catch {
               console.warn(`[Automation] [${sceneId}] type missed: ${action.selector}`);
-              await gentleScroll(page);
+              await recoverWithVisualFocus(page, visualFocus);
             }
             break;
           }
@@ -204,15 +252,19 @@ export async function recordScene(
             break;
           case "scroll":
             await page.evaluate(
-              ({ direction, px }) => window.scrollBy(0, direction === "down" ? (px || 400) : -(px || 400)),
+              ({ direction, px }) =>
+                window.scrollBy(0, direction === "down" ? (px || 400) : -(px || 400)),
               { direction: action.direction, px: action.px }
             );
+            break;
+          case "scrollTo":
+            await scrollToSelectorSmooth(page, action.selector, action.block ?? "center");
             break;
           case "hover": {
             const ok = await resilientPointerAction(page, action.selector, "hover", INTERACT_TIMEOUT);
             if (!ok) {
               console.warn(`[Automation] [${sceneId}] hover missed: ${action.selector}`);
-              await gentleScroll(page);
+              await recoverWithVisualFocus(page, visualFocus);
             }
             break;
           }
@@ -225,12 +277,12 @@ export async function recordScene(
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.warn(`[Automation] [${sceneId}] action ${action.type} error (continuing): ${msg}`);
-        await gentleScroll(page);
+        await recoverWithVisualFocus(page, visualFocus);
       }
-      await page.waitForTimeout(500); // small buffer between actions
+      await page.waitForTimeout(500);
     }
 
-    await page.waitForTimeout(1000); // buffer before closing
+    await page.waitForTimeout(1000);
   } finally {
     await context.close();
     await browser.close();
@@ -238,7 +290,6 @@ export async function recordScene(
 
   const endTime = Date.now();
 
-  // Playwright saves the video as a temp file in segmentsDir — find and rename it
   const files = await fs.readdir(segmentsDir);
   const videoFile = files.find((f) => f.endsWith(".webm") && !f.startsWith("scene-"));
   if (!videoFile) throw new Error(`No video recorded for scene ${sceneId}`);

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { callLLM } from "../../lib/llm";
 import { SCRIPT_SYSTEM_PROMPT, buildScriptPrompt } from "./prompts";
+import { normalizeDemoScript } from "./normalize-actions";
 import type { ProductMap, DemoScript, DemoTone } from "@demo-copilot/types";
 
 const BrowserActionSchema = z.discriminatedUnion("type", [
@@ -9,6 +10,11 @@ const BrowserActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("type"), selector: z.string(), text: z.string() }),
   z.object({ type: z.literal("wait"), ms: z.number() }),
   z.object({ type: z.literal("scroll"), direction: z.enum(["up", "down"]), px: z.number().optional() }),
+  z.object({
+    type: z.literal("scrollTo"),
+    selector: z.string(),
+    block: z.enum(["start", "center"]).optional(),
+  }),
   z.object({ type: z.literal("hover"), selector: z.string() }),
   z.object({ type: z.literal("screenshot"), label: z.string() }),
 ]);
@@ -63,13 +69,16 @@ export async function generateScript(
 ): Promise<DemoScript> {
   console.log(`[Script] Generating ${tone} demo script`);
 
-  const script = await callLLM<DemoScript>(
+  const raw = await callLLM<DemoScript>(
     SCRIPT_SYSTEM_PROMPT,
     buildScriptPrompt(productMap, tone, url),
     DemoScriptSchemaWithPreprocess,
     6000
   );
 
-  console.log(`[Script] Generated ${script.scenes.length} scenes`);
+  const script = normalizeDemoScript(raw, productMap, url);
+  console.log(
+    `[Script] Generated ${script.scenes.length} scenes (normalized: scrollTo + multi-page)`
+  );
   return script;
 }

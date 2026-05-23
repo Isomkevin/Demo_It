@@ -7,6 +7,7 @@ import { jobRoutes } from "./routes/jobs";
 import { videoRoutes } from "./routes/video";
 import { billingRoutes } from "./routes/billing";
 import { orgSettingsRoutes } from "./routes/org-settings";
+import { ensureRedisReady } from "./lib/redis";
 import { startWorkers } from "./modules/orchestrator";
 
 declare module "fastify" {
@@ -50,6 +51,7 @@ const start = async () => {
     await server.register(jobRoutes);
     await server.register(videoRoutes);
 
+    await ensureRedisReady();
     startWorkers();
 
     await server.listen({ port, host: "0.0.0.0" });

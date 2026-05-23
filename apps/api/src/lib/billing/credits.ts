@@ -72,11 +72,12 @@ export async function setPlan(
   const prismaPlan = plan === "ENTERPRISE" ? "ENTERPRISE" : plan;
 
   await prisma.$transaction(async (tx) => {
+    let skipCreditGrant = false;
     if (opts.stripeEventId && opts.grantCredits) {
       const dup = await tx.creditLedger.findUnique({
         where: { stripeEventId: opts.stripeEventId },
       });
-      if (dup) return;
+      if (dup) skipCreditGrant = true;
     }
 
     const updateData: {
@@ -97,23 +98,18 @@ export async function setPlan(
       updateData.seatLimit = opts.seatLimit;
     }
 
-    if (opts.grantCredits && opts.grantCredits > 0) {
+    if (opts.grantCredits && opts.grantCredits > 0 && !skipCreditGrant) {
       updateData.creditsBalance = { increment: opts.grantCredits };
 
       if (opts.stripeEventId) {
-        const dup = await tx.creditLedger.findUnique({
-          where: { stripeEventId: opts.stripeEventId },
+        await tx.creditLedger.create({
+          data: {
+            orgId,
+            delta: opts.grantCredits,
+            reason: "subscription_grant",
+            stripeEventId: opts.stripeEventId,
+          },
         });
-        if (!dup) {
-          await tx.creditLedger.create({
-            data: {
-              orgId,
-              delta: opts.grantCredits,
-              reason: "subscription_grant",
-              stripeEventId: opts.stripeEventId,
-            },
-          });
-        }
       } else {
         await tx.creditLedger.create({
           data: {
