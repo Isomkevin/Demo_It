@@ -44,14 +44,21 @@ export function mergeCrawledPages(productMap: ProductMap, site: SiteScrape): Pro
   };
 
   const sanitizeFlow = (flow: ProductMap["flows"][0]): ProductMap["flows"][0] => {
-    const steps = Array.isArray(flow.steps) ? flow.steps : [];
-    return {
-      ...flow,
-      steps: steps.map((step) => ({
+    const rawSteps = Array.isArray(flow.steps) ? flow.steps : [];
+    const steps = rawSteps
+      .filter(
+        (step): step is ProductMap["flows"][0]["steps"][0] =>
+          typeof step === "object" &&
+          step !== null &&
+          typeof step.pageUrl === "string" &&
+          typeof step.action === "object" &&
+          step.action !== null
+      )
+      .map((step) => ({
         ...step,
-        pageUrl: sanitizePageUrl(step.pageUrl ?? site.seedUrl),
-      })),
-    };
+        pageUrl: sanitizePageUrl(step.pageUrl),
+      }));
+    return { ...flow, steps };
   };
 
   const withSteps = (flows: ProductMap["flows"] | undefined) =>
