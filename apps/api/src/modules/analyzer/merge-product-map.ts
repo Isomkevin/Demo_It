@@ -27,7 +27,6 @@ export function mergeCrawledPages(productMap: ProductMap, site: SiteScrape): Pro
   for (const llmPage of productMap.pages ?? []) {
     const key = normalizeUrlKey(llmPage.url);
     if (!allowedUrls.has(key)) continue;
-    const crawled = crawledByUrl.get(key)!;
     const existing = mergedPages.find((x) => normalizeUrlKey(x.url) === key);
     if (existing) {
       existing.title = llmPage.title || existing.title;
@@ -82,9 +81,9 @@ export function buildAnalyzerPromptFromSite(site: SiteScrape): string {
   const summaries = site.pages.map((p) => ({
     url: p.url,
     title: p.title,
-    components: p.components.slice(0, 25),
-    sections: p.sections.slice(0, 12),
-    topLinks: p.components.filter((c) => c.type === "link").slice(0, 10),
+    components: (p.components ?? []).slice(0, 25),
+    sections: (p.sections ?? []).slice(0, 12),
+    topLinks: (p.components ?? []).filter((c) => c.type === "link").slice(0, 10),
   }));
 
   return `
